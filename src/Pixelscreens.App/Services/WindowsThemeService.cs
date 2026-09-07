@@ -47,6 +47,72 @@ public static class WindowsThemeService
         Broadcast("ImmersiveColorSet");
     }
 
+    /// <summary>Set the Windows accent colour from a hex string like "#7C7CFF". Does not touch dark mode or title bars.</summary>
+    public static void SetAccent(string hex)
+    {
+        var c = System.Drawing.ColorTranslator.FromHtml(hex);
+        var abgr = 0xFF000000u | ((uint)c.B << 16) | ((uint)c.G << 8) | c.R;
+        using (var k = Registry.CurrentUser.CreateSubKey(Dwm)!)
+        {
+            k.SetValue("AccentColor", unchecked((int)abgr), RegistryValueKind.DWord);
+            k.SetValue("ColorizationColor", unchecked((int)abgr), RegistryValueKind.DWord);
+            k.SetValue("ColorizationAfterglow", unchecked((int)abgr), RegistryValueKind.DWord);
+        }
+        using (var k = Registry.CurrentUser.CreateSubKey(Accent)!)
+        {
+            k.SetValue("AccentColorMenu", unchecked((int)abgr), RegistryValueKind.DWord);
+        }
+        Broadcast("ImmersiveColorSet");
+    }
+
+    public static string ReadAccentHex()
+    {
+        using var d = Registry.CurrentUser.OpenSubKey(Dwm);
+        if (d?.GetValue("AccentColor") is int v)
+        {
+            var u = unchecked((uint)v);
+            return $"#{u & 0xFF:X2}{(u >> 8) & 0xFF:X2}{(u >> 16) & 0xFF:X2}";
+        }
+        return "#0078D4";
+    }
+
+    public static void SetDarkMode(bool dark)
+    {
+        using var k = Registry.CurrentUser.CreateSubKey(Personalize)!;
+        k.SetValue("AppsUseLightTheme", dark ? 0 : 1, RegistryValueKind.DWord);
+        k.SetValue("SystemUsesLightTheme", dark ? 0 : 1, RegistryValueKind.DWord);
+        Broadcast("ImmersiveColorSet");
+    }
+
+    /// <summary>Accent on window title bars and borders (the thing that draws a coloured line around windows).</summary>
+    public static void SetAccentOnTitleBars(bool on)
+    {
+        using var k = Registry.CurrentUser.CreateSubKey(Dwm)!;
+        k.SetValue("ColorPrevalence", on ? 1 : 0, RegistryValueKind.DWord);
+        Broadcast("ImmersiveColorSet");
+    }
+
+    public static void SetTransparency(bool on)
+    {
+        using var k = Registry.CurrentUser.CreateSubKey(Personalize)!;
+        k.SetValue("EnableTransparency", on ? 1 : 0, RegistryValueKind.DWord);
+        Broadcast("ImmersiveColorSet");
+    }
+
+    public static bool ReadTransparency()
+    {
+        using var p = Registry.CurrentUser.OpenSubKey(Personalize);
+        return (int?)p?.GetValue("EnableTransparency") != 0;
+    }
+
+    private const string ExplorerPolicy = @"Software\Policies\Microsoft\Windows\Explorer";
+    public static bool ReadWebSearch()
+    {
+        using var k = Registry.CurrentUser.OpenSubKey(ExplorerPolicy);
+        return (int?)k?.GetValue("DisableSearchBoxSuggestions") != 1;
+    }
+    public static void SetWebSearch(bool on) => Set(ExplorerPolicy, "DisableSearchBoxSuggestions", on ? 0 : 1, "SearchSettings");
+
     public static (bool dark, bool prevalence) Read()
     {
         using var p = Registry.CurrentUser.OpenSubKey(Personalize);

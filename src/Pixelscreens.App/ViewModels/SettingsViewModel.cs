@@ -147,6 +147,46 @@ public sealed partial class SettingsViewModel : ObservableObject
     // Windows skin
     [ObservableProperty] private string _windowsThemeState = "";
     [ObservableProperty] private string _status = "";
+    [ObservableProperty] private bool _darkMode;
+    [ObservableProperty] private bool _accentOnTitleBars;
+    [ObservableProperty] private bool _transparency;
+    [ObservableProperty] private bool _webSearch;
+    [ObservableProperty] private string _accentHex = "#0078D4";
+    [ObservableProperty] private string _customHex = "";
+
+    public string[] Palette { get; } =
+    {
+        "#F2F2F2", "#BFBFBF", "#8C8C8C", "#5A5A5A", "#2B2B2B", "#0A0A0A",
+        "#FF5C5C", "#FF7F50", "#FFB454", "#FFD700", "#C8E64C", "#4CE0A0",
+        "#2ED8C3", "#4CC2FF", "#0078D4", "#7C7CFF", "#B76CFF", "#FF6BCB",
+        "#E0245E", "#8B1E3F", "#A0522D", "#556B2F", "#1F6F8B", "#2C3E50",
+    };
+
+    partial void OnDarkModeChanged(bool v) => Tweak(() => WindowsThemeService.SetDarkMode(v));
+    partial void OnAccentOnTitleBarsChanged(bool v) => Tweak(() => WindowsThemeService.SetAccentOnTitleBars(v));
+    partial void OnTransparencyChanged(bool v) => Tweak(() => WindowsThemeService.SetTransparency(v));
+    partial void OnWebSearchChanged(bool v) => Tweak(() => WindowsThemeService.SetWebSearch(v));
+
+    [RelayCommand]
+    private void PickAccent(string hex)
+    {
+        try
+        {
+            WindowsThemeService.SetAccent(hex);
+            AccentHex = hex.ToUpperInvariant();
+            Status = $"Windows accent set to {AccentHex}.";
+        }
+        catch (Exception ex) { Status = $"could not set accent: {ex.Message}"; }
+    }
+
+    [RelayCommand]
+    private void ApplyCustomHex()
+    {
+        var h = CustomHex.Trim();
+        if (!h.StartsWith('#')) h = "#" + h;
+        if (h.Length != 7 || !h[1..].All(Uri.IsHexDigit)) { Status = "enter a colour like #7C7CFF"; return; }
+        PickAccent(h);
+    }
 
     partial void OnStartWithWindowsChanged(bool value)
     {
@@ -227,9 +267,14 @@ public sealed partial class SettingsViewModel : ObservableObject
         try
         {
             var (dark, prevalence) = WindowsThemeService.Read();
-            WindowsThemeState = dark
-                ? (prevalence ? "Windows: dark, accent on title bars" : "Windows: dark, default accent")
-                : "Windows: light mode";
+            _loading = true;
+            DarkMode = dark;
+            AccentOnTitleBars = prevalence;
+            Transparency = WindowsThemeService.ReadTransparency();
+            WebSearch = WindowsThemeService.ReadWebSearch();
+            AccentHex = WindowsThemeService.ReadAccentHex();
+            _loading = false;
+            WindowsThemeState = $"Windows: {(dark ? "dark" : "light")} · accent {AccentHex}";
         }
         catch (Exception ex)
         {

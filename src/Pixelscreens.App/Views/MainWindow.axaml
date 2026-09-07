@@ -296,14 +296,38 @@
         </Border>
 
         <Border Classes="panel">
-          <DockPanel>
-            <Button DockPanel.Dock="Right" Classes="primary" Content="Match Windows to this theme" Command="{Binding MatchWindowsCommand}" VerticalAlignment="Center" Margin="16,0,0,0" />
-            <StackPanel Spacing="4">
-              <TextBlock Classes="pixel" Text="WINDOWS SKIN" />
-              <TextBlock Classes="muted" TextWrapping="Wrap" Text="Sets Windows to dark mode with a white accent on title bars, turns off transparency, and keeps the taskbar black." />
-              <TextBlock Classes="dim" Text="{Binding WindowsThemeState}" />
+          <StackPanel Spacing="10">
+            <TextBlock Classes="pixel" Text="WINDOWS COLOURS" />
+            <TextBlock Classes="muted" TextWrapping="Wrap" Text="Pick the Windows accent colour. It shows on Start, taskbar highlights, toggles, and selected items. Title bars stay plain unless you turn that on." />
+            <ItemsControl ItemsSource="{Binding Palette}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="x:String">
+                  <Button Width="34" Height="34" Margin="0,0,6,6" Padding="0" BorderThickness="1"
+                          Command="{Binding $parent[ItemsControl].((vm:SettingsViewModel)DataContext).PickAccentCommand}" CommandParameter="{Binding}"
+                          ToolTip.Tip="{Binding}">
+                    <Border Background="{Binding, Converter={x:Static px:TabConverters.HexToBrush}}" Width="26" Height="26" />
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="Custom" VerticalAlignment="Center" />
+              <TextBox Width="120" Watermark="#7C7CFF" Text="{Binding CustomHex}" />
+              <Button Content="Apply" Command="{Binding ApplyCustomHexCommand}" />
+              <Border Width="26" Height="26" Background="{Binding AccentHex, Converter={x:Static px:TabConverters.HexToBrush}}" BorderBrush="{StaticResource Px.Brush.BorderStrong}" BorderThickness="1" VerticalAlignment="Center" />
+              <TextBlock Classes="dim" Text="{Binding WindowsThemeState}" VerticalAlignment="Center" />
             </StackPanel>
-          </DockPanel>
+            <WrapPanel>
+              <CheckBox Content="Dark mode" IsChecked="{Binding DarkMode}" Margin="0,0,16,0" />
+              <CheckBox Content="Accent on title bars and window borders" IsChecked="{Binding AccentOnTitleBars}" Margin="0,0,16,0" />
+              <CheckBox Content="Transparency effects" IsChecked="{Binding Transparency}" Margin="0,0,16,0" />
+              <CheckBox Content="Web results in Start search (off is faster)" IsChecked="{Binding WebSearch}" Margin="0,0,16,0" />
+            </WrapPanel>
+            <TextBlock Classes="dim" TextWrapping="Wrap" Text="Want Everything as your taskbar search? Install EverythingToolbar from GitHub; it replaces the search box with instant results." />
+          </StackPanel>
         </Border>
       </StackPanel>
       </ScrollViewer>
