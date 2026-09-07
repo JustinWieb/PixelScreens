@@ -87,12 +87,12 @@
           <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top" Margin="16,0,0,0">
             <Button Content="Rescan" Command="{Binding RefreshCommand}" IsEnabled="{Binding !Busy}" />
             <Button Content="Save layout" Command="{Binding SaveCommand}" IsEnabled="{Binding Dirty}" />
-            <Button Classes="primary" Content="Start hook" Command="{Binding StartCommand}" IsVisible="{Binding !IsRunning}" IsEnabled="{Binding !Busy}" />
-            <Button Content="Stop hook" Command="{Binding StopCommand}" IsVisible="{Binding IsRunning}" IsEnabled="{Binding !Busy}" />
+            <Button Classes="primary" Content="Turn cursor fix on" Command="{Binding StartCommand}" IsVisible="{Binding !IsRunning}" IsEnabled="{Binding !Busy}" />
+            <Button Content="Turn cursor fix off" Command="{Binding StopCommand}" IsVisible="{Binding IsRunning}" IsEnabled="{Binding !Busy}" />
           </StackPanel>
           <StackPanel>
             <TextBlock Classes="pixel" Text="PHYSICAL LAYOUT" />
-            <TextBlock Classes="muted" Margin="0,6,0,0" TextWrapping="Wrap" Text="Drag screens to where they really sit. The cursor then crosses edges at the right spot, whatever the DPI." />
+            <TextBlock Classes="muted" Margin="0,6,0,0" TextWrapping="Wrap" Text="Drag screens to where they really sit on your desk. With cursor fix on, the mouse crosses between screens at the matching physical spot instead of jumping. Windows still decides which screen is where." />
           </StackPanel>
         </DockPanel>
         <Border Classes="panel" Padding="0" ClipToBounds="True">

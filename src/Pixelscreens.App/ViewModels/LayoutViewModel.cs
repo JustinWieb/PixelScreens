@@ -15,7 +15,22 @@ public sealed partial class LayoutViewModel : ObservableObject
     public LayoutViewModel(CursorEngineService engine)
     {
         _engine = engine;
-        _engine.DaemonMessage += (_, msg) => Dispatcher.UIThread.Post(() => LastDaemonMessage = Trim(msg));
+        _engine.DaemonMessage += (_, msg) => Dispatcher.UIThread.Post(() =>
+        {
+            LastDaemonMessage = Trim(msg);
+            var ev = System.Text.RegularExpressions.Regex.Match(msg, "<Event>([^<]+)</Event>").Groups[1].Value;
+            if (ev.Length > 0 && ev != "FocusChanged") Status = ev switch
+            {
+                "Running" => "cursor fix on",
+                "Stopped" => "cursor fix off",
+                "Loaded" => "layout loaded by cursor engine",
+                "LoadFailed" => "cursor engine rejected the layout (see log)",
+                "Dead" => "cursor engine connection lost",
+                _ => $"cursor engine: {ev}",
+            };
+            if (ev == "Running") IsRunning = true;
+            if (ev is "Stopped" or "Dead") IsRunning = false;
+        });
     }
 
     public ObservableCollection<MonitorBox> Monitors { get; } = new();
@@ -63,7 +78,7 @@ public sealed partial class LayoutViewModel : ObservableObject
             Dirty = false;
             EngineOk = true;
             IsRunning = _engine.IsRunning;
-            Status = $"cursor engine ok · {Monitors.Count} monitor(s)" + (IsRunning ? " · hook running" : "");
+            Status = $"{Monitors.Count} monitor(s) found" + (IsRunning ? " · cursor fix on" : " · cursor fix off");
         }
         catch (Exception ex)
         {
@@ -115,12 +130,12 @@ public sealed partial class LayoutViewModel : ObservableObject
     private async Task StartAsync()
     {
         Busy = true;
-        Status = "starting cursor hook...";
+        Status = "turning cursor fix on...";
         try
         {
             await _engine.StartAsync();
             IsRunning = true;
-            Status = "hook running";
+            Status = "cursor fix on";
         }
         catch (Exception ex)
         {
@@ -140,7 +155,7 @@ public sealed partial class LayoutViewModel : ObservableObject
         {
             await _engine.StopAsync();
             IsRunning = false;
-            Status = "hook stopped";
+            Status = "cursor fix off";
         }
         catch (Exception ex)
         {

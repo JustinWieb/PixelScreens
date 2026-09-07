@@ -58,7 +58,10 @@ public sealed class CursorEngineService : IDisposable
         _ipc.Listen();
 
         var zones = layout.ComputeZones();
-        await _ipc.SendMessageAsync(new CommandMessage(LittleBigMouseCommand.Load, zones).Serialize(), SendTimeout, ct);
+        var load = new CommandMessage(LittleBigMouseCommand.Load, zones).Serialize();
+        Log("-> " + load);
+        await _ipc.SendMessageAsync(load, SendTimeout, ct);
+        Log("-> Run");
         await _ipc.SendMessageAsync(new CommandMessage(LittleBigMouseCommand.Run).Serialize(), SendTimeout, ct);
         IsRunning = true;
     }
@@ -110,10 +113,24 @@ public sealed class CursorEngineService : IDisposable
         _daemon.StopCurrentSessionDaemons();
     }
 
+    public static string LogPath => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PixelScreens", "cursor-daemon.log");
+
+    private static void Log(string line)
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(LogPath)!);
+            File.AppendAllText(LogPath, $"{DateTime.Now:HH:mm:ss.fff} {line}{Environment.NewLine}");
+        }
+        catch { /* logging is best effort */ }
+    }
+
     private LocalIpcClient CreateClient()
     {
         var c = new LocalIpcClient();
-        c.MessageReceived += (_, msg) => DaemonMessage?.Invoke(this, msg);
+        c.MessageReceived += (_, msg) => { Log("<- " + msg); DaemonMessage?.Invoke(this, msg); };
+        c.Connected += (_, _) => Log("connected");
         c.ConnectionFailed += (_, _) => DaemonMessage?.Invoke(this, "daemon connection failed");
         return c;
     }
