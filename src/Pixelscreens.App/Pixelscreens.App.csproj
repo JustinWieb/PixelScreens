@@ -9,6 +9,7 @@
     <AssemblyName>Pixelscreens</AssemblyName>
     <RootNamespace>Pixelscreens</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\pixelscreens.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <!-- DisplayMagician.Shared still carries WinForms types; drop once the engine is trimmed. -->

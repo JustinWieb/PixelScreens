@@ -4,7 +4,8 @@
         xmlns:px="using:Pixelscreens.Controls"
         x:Class="Pixelscreens.Views.MainWindow"
         x:DataType="vm:MainViewModel"
-        Title="Pixelscreens"
+        Title="PixelScreens"
+        Icon="avares://Pixelscreens/Assets/pixelscreens.ico"
         Width="1040" Height="680"
         MinWidth="760" MinHeight="500"
         WindowStartupLocation="CenterScreen">
