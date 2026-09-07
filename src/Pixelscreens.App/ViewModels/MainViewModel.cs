@@ -1,102 +1,58 @@
-using System.Collections.ObjectModel;
-using Avalonia.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
-using DisplayMagicianShared;
+using Pixelscreens.Services;
 
 namespace Pixelscreens.ViewModels;
 
-public sealed partial class MainViewModel : ObservableObject
+public sealed partial class MainViewModel : ObservableObject, IDisposable
 {
-    private readonly Window _window;
+    private readonly CursorEngineService _cursorEngine = new();
 
-    public MainViewModel(Window window)
+    public MainViewModel()
     {
-        _window = window;
-        Refresh();
+        Profiles = new ProfilesViewModel(new DisplayProfileService());
+        Layout = new LayoutViewModel(_cursorEngine);
+        Settings = new SettingsViewModel();
+        Profiles.PropertyChanged += (_, e) => { if (e.PropertyName is nameof(ProfilesViewModel.Status) or nameof(ProfilesViewModel.EngineOk)) RaiseFooter(); };
+        Layout.PropertyChanged += (_, e) => { if (e.PropertyName is nameof(LayoutViewModel.Status) or nameof(LayoutViewModel.EngineOk)) RaiseFooter(); };
     }
 
-    public ObservableCollection<ProfileRow> Profiles { get; } = new();
-    public ObservableCollection<ScreenRow> Screens { get; } = new();
+    public ProfilesViewModel Profiles { get; }
+    public LayoutViewModel Layout { get; }
+    public SettingsViewModel Settings { get; }
 
-    [ObservableProperty] private string _engineStatus = "";
-    [ObservableProperty] private bool _engineOk;
     [ObservableProperty] private int _selectedTab;
 
     public bool ShowProfiles => SelectedTab == 0;
     public bool ShowLayout => SelectedTab == 1;
     public bool ShowSettings => SelectedTab == 2;
 
+    public string FooterStatus => SelectedTab == 1 ? Layout.Status : Profiles.Status;
+    public bool FooterOk => SelectedTab == 1 ? Layout.EngineOk : Profiles.EngineOk;
+
     partial void OnSelectedTabChanged(int value)
     {
         OnPropertyChanged(nameof(ShowProfiles));
         OnPropertyChanged(nameof(ShowLayout));
         OnPropertyChanged(nameof(ShowSettings));
+        RaiseFooter();
     }
 
-    [RelayCommand]
-    private void Refresh()
+    private void RaiseFooter()
     {
-        LoadProfiles();
-        LoadScreens();
+        OnPropertyChanged(nameof(FooterStatus));
+        OnPropertyChanged(nameof(FooterOk));
     }
 
-    private void LoadProfiles()
+    public async Task InitialiseAsync()
     {
-        Profiles.Clear();
-        try
-        {
-            // DisplayMagician engine: reads %LOCALAPPDATA%\DisplayMagician\DisplayProfiles.json
-            // and probes NVIDIA / AMD / Intel / Windows CCD for the live configuration.
-            ProfileRepository.InitialiseRepository();
-            var current = ProfileRepository.CurrentProfile;
-            foreach (var p in ProfileRepository.AllProfiles)
-            {
-                Profiles.Add(new ProfileRow(
-                    p.Name,
-                    p.UUID,
-                    current is not null && current.UUID == p.UUID,
-                    p.HasUsableSavedConfiguration(out _)));
-            }
-
-            EngineOk = true;
-            EngineStatus = $"display engine ok · {Profiles.Count} profile(s)";
-        }
-        catch (Exception ex)
-        {
-            EngineOk = false;
-            EngineStatus = $"display engine failed: {ex.GetType().Name}: {ex.Message}";
-        }
+        await Profiles.RefreshAsync();
+        await Layout.RefreshAsync();
     }
 
-    private void LoadScreens()
+    public void Shutdown()
     {
-        Screens.Clear();
-        var screens = _window.Screens;
-        if (screens is null) return;
-        var i = 0;
-        foreach (var s in screens.All)
-        {
-            i++;
-            var b = s.Bounds;
-            Screens.Add(new ScreenRow(
-                s.DisplayName ?? $"Display {i}",
-                $"{b.Width} x {b.Height}",
-                $"{b.X}, {b.Y}",
-                $"{s.Scaling * 100:0}%",
-                s.IsPrimary));
-        }
+        try { _cursorEngine.Shutdown(); } catch { /* best effort on exit */ }
     }
-}
 
-public sealed record ProfileRow(string Name, string Uuid, bool IsActive, bool IsUsable)
-{
-    public string Badge => IsActive ? "ACTIVE" : IsUsable ? "" : "UNAVAILABLE";
-    public bool HasBadge => Badge.Length > 0;
-}
-
-public sealed record ScreenRow(string Name, string Resolution, string Position, string Scale, bool IsPrimary)
-{
-    public string Badge => IsPrimary ? "PRIMARY" : "";
-    public bool HasBadge => IsPrimary;
+    public void Dispose() => _cursorEngine.Dispose();
 }

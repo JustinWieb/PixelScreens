@@ -5,8 +5,8 @@
         x:Class="Pixelscreens.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="Pixelscreens"
-        Width="980" Height="640"
-        MinWidth="720" MinHeight="480"
+        Width="1040" Height="680"
+        MinWidth="760" MinHeight="500"
         WindowStartupLocation="CenterScreen">
 
   <Grid RowDefinitions="Auto,*,Auto" ColumnDefinitions="200,*">
@@ -38,15 +38,17 @@
     <Grid Grid.Row="1" Grid.Column="1" Margin="24">
 
       <!-- PROFILES -->
-      <DockPanel IsVisible="{Binding ShowProfiles}">
+      <Panel IsVisible="{Binding ShowProfiles}">
+      <DockPanel DataContext="{Binding Profiles}" x:DataType="vm:ProfilesViewModel">
         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,16">
+          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top" Margin="16,0,0,0">
+            <TextBox Width="200" Watermark="new profile name" Text="{Binding NewProfileName}" IsEnabled="{Binding !Busy}" />
+            <Button Classes="primary" Content="Save current" Command="{Binding SaveCurrentCommand}" IsEnabled="{Binding !Busy}" />
+            <Button Content="Refresh" Command="{Binding RefreshCommand}" IsEnabled="{Binding !Busy}" />
+          </StackPanel>
           <StackPanel>
             <TextBlock Classes="pixel" Text="DISPLAY PROFILES" />
-            <TextBlock Classes="muted" Margin="0,6,0,0" Text="Saved monitor arrangements. Apply one to switch every screen at once." />
-          </StackPanel>
-          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
-            <Button Content="Refresh" Command="{Binding RefreshCommand}" />
-            <Button Classes="primary" Content="Save current" IsEnabled="False" />
+            <TextBlock Classes="muted" Margin="0,6,0,0" TextWrapping="Wrap" Text="Saved monitor arrangements. Apply one to switch every screen at once." />
           </StackPanel>
         </DockPanel>
         <Border Classes="panel" Padding="0">
@@ -56,10 +58,14 @@
                 <DataTemplate x:DataType="vm:ProfileRow">
                   <Border Classes="row">
                     <DockPanel>
-                      <Border DockPanel.Dock="Right" Classes="chip" IsVisible="{Binding HasBadge}" VerticalAlignment="Center">
-                        <TextBlock Classes="pixel" FontSize="7" Text="{Binding Badge}" Foreground="{StaticResource Px.Brush.Accent}" />
-                      </Border>
-                      <StackPanel>
+                      <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <Border Classes="chip" IsVisible="{Binding HasBadge}" VerticalAlignment="Center">
+                          <TextBlock Classes="pixel" FontSize="7" Text="{Binding Badge}" Foreground="{StaticResource Px.Brush.Accent}" />
+                        </Border>
+                        <Button Content="Apply" Command="{Binding ApplyCommand}" IsVisible="{Binding CanApply}" />
+                        <Button Content="Delete" Command="{Binding DeleteCommand}" />
+                      </StackPanel>
+                      <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="{Binding Name}" />
                         <TextBlock Classes="dim" Text="{Binding Uuid}" />
                       </StackPanel>
@@ -71,39 +77,55 @@
           </ScrollViewer>
         </Border>
       </DockPanel>
+      </Panel>
 
       <!-- LAYOUT -->
-      <DockPanel IsVisible="{Binding ShowLayout}">
-        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,16">
-          <TextBlock Classes="pixel" Text="PHYSICAL LAYOUT" />
-          <TextBlock Classes="muted" Margin="0,6,0,0" Text="Where your screens really sit, so the cursor crosses edges where it should. Engine wiring comes next." />
-        </StackPanel>
-        <Border Classes="panel" Padding="0">
-          <ItemsControl ItemsSource="{Binding Screens}">
-            <ItemsControl.ItemTemplate>
-              <DataTemplate x:DataType="vm:ScreenRow">
-                <Border Classes="row">
-                  <Grid ColumnDefinitions="*,140,120,80,Auto">
-                    <TextBlock Grid.Column="0" Text="{Binding Name}" />
-                    <TextBlock Grid.Column="1" Classes="muted" Text="{Binding Resolution}" />
-                    <TextBlock Grid.Column="2" Classes="muted" Text="{Binding Position}" />
-                    <TextBlock Grid.Column="3" Classes="muted" Text="{Binding Scale}" />
-                    <Border Grid.Column="4" Classes="chip" IsVisible="{Binding HasBadge}">
-                      <TextBlock Classes="pixel" FontSize="7" Text="{Binding Badge}" Foreground="{StaticResource Px.Brush.Accent}" />
-                    </Border>
-                  </Grid>
-                </Border>
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
+      <Panel IsVisible="{Binding ShowLayout}">
+      <DockPanel DataContext="{Binding Layout}" x:DataType="vm:LayoutViewModel">
+        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,16">
+          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top" Margin="16,0,0,0">
+            <Button Content="Rescan" Command="{Binding RefreshCommand}" IsEnabled="{Binding !Busy}" />
+            <Button Content="Save layout" Command="{Binding SaveCommand}" IsEnabled="{Binding Dirty}" />
+            <Button Classes="primary" Content="Start hook" Command="{Binding StartCommand}" IsVisible="{Binding !IsRunning}" IsEnabled="{Binding !Busy}" />
+            <Button Content="Stop hook" Command="{Binding StopCommand}" IsVisible="{Binding IsRunning}" IsEnabled="{Binding !Busy}" />
+          </StackPanel>
+          <StackPanel>
+            <TextBlock Classes="pixel" Text="PHYSICAL LAYOUT" />
+            <TextBlock Classes="muted" Margin="0,6,0,0" TextWrapping="Wrap" Text="Drag screens to where they really sit. The cursor then crosses edges at the right spot, whatever the DPI." />
+          </StackPanel>
+        </DockPanel>
+        <Border Classes="panel" Padding="0" ClipToBounds="True">
+          <px:LayoutCanvas x:Name="LayoutCanvas" Monitors="{Binding Monitors}"
+                           PixelFont="{StaticResource Px.Font.Pixel}"
+                           BoxBrush="{StaticResource Px.Brush.PanelRaised}"
+                           BorderBrush="{StaticResource Px.Brush.BorderStrong}"
+                           AccentBrush="{StaticResource Px.Brush.Accent}"
+                           TextBrush="{StaticResource Px.Brush.Text}"
+                           MutedBrush="{StaticResource Px.Brush.TextMuted}" />
         </Border>
       </DockPanel>
+      </Panel>
 
       <!-- SETTINGS -->
-      <StackPanel IsVisible="{Binding ShowSettings}">
-        <TextBlock Classes="pixel" Text="SETTINGS" />
-        <TextBlock Classes="muted" Margin="0,6,0,0" Text="Nothing here yet." />
+      <Panel IsVisible="{Binding ShowSettings}">
+      <StackPanel DataContext="{Binding Settings}" x:DataType="vm:SettingsViewModel" Spacing="16">
+        <StackPanel>
+          <TextBlock Classes="pixel" Text="SETTINGS" />
+          <TextBlock Classes="muted" Margin="0,6,0,0" Text="Pixelscreens is black and white on purpose. Windows can match it." />
+        </StackPanel>
+        <Border Classes="panel">
+          <DockPanel>
+            <Button DockPanel.Dock="Right" Classes="primary" Content="Match Windows to this theme" Command="{Binding MatchWindowsCommand}" VerticalAlignment="Center" Margin="16,0,0,0" />
+            <StackPanel Spacing="4">
+              <TextBlock Classes="pixel" Text="WINDOWS SKIN" />
+              <TextBlock Classes="muted" TextWrapping="Wrap" Text="Sets Windows to dark mode with a white accent on title bars, turns off transparency, and keeps the taskbar black." />
+              <TextBlock Classes="dim" Text="{Binding WindowsThemeState}" />
+              <TextBlock Classes="dim" Text="{Binding Status}" IsVisible="{Binding Status, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+            </StackPanel>
+          </DockPanel>
+        </Border>
       </StackPanel>
+      </Panel>
 
     </Grid>
 
@@ -112,9 +134,9 @@
             BorderBrush="{StaticResource Px.Brush.Border}" BorderThickness="0,1,0,0" Padding="16,6">
       <Grid ColumnDefinitions="Auto,*">
         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-          <Ellipse Width="6" Height="6" Fill="{StaticResource Px.Brush.Good}" IsVisible="{Binding EngineOk}" />
-          <Ellipse Width="6" Height="6" Fill="{StaticResource Px.Brush.Bad}" IsVisible="{Binding !EngineOk}" />
-          <TextBlock Classes="dim" Text="{Binding EngineStatus}" VerticalAlignment="Center" />
+          <Ellipse Width="6" Height="6" Fill="{StaticResource Px.Brush.Good}" IsVisible="{Binding FooterOk}" />
+          <Ellipse Width="6" Height="6" Fill="{StaticResource Px.Brush.Bad}" IsVisible="{Binding !FooterOk}" />
+          <TextBlock Classes="dim" Text="{Binding FooterStatus}" VerticalAlignment="Center" />
         </StackPanel>
         <px:PixelSprite Grid.Column="1" Margin="24,0,0,0" PixelSize="2" Speed="30"
                         BodyBrush="{StaticResource Px.Brush.TextDim}" EyeBrush="{StaticResource Px.Brush.Bg}" />

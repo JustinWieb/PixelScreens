@@ -29,6 +29,8 @@
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.0" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <!-- LittleBigMouse's layout model is built on ReactiveUI; it needs the Avalonia scheduler registered. -->
+    <PackageReference Include="ReactiveUI.Avalonia" Version="12.0.3" />
   </ItemGroup>
 
   <ItemGroup>
@@ -37,6 +39,28 @@
     <!-- Physical monitor layout model (from LittleBigMouse). -->
     <ProjectReference Include="..\..\upstream\LittleBigMouse\LittleBigMouse.Core\LittleBigMouse.DisplayLayout\LittleBigMouse.DisplayLayout.csproj" />
     <ProjectReference Include="..\..\upstream\LittleBigMouse\LittleBigMouse.Core\LittleBigMouse.Zones\LittleBigMouse.Zoning.csproj" />
+    <ProjectReference Include="..\..\upstream\LittleBigMouse\LittleBigMouse.Plugins\LittleBigMouse.Plugins.Core\LittleBigMouse.Plugins.csproj" />
+    <ProjectReference Include="..\..\upstream\LittleBigMouse\LittleBigMouse.Platform.Windows\LittleBigMouse.Platform.Windows.csproj" />
+    <ProjectReference Include="..\..\upstream\LittleBigMouse\HLab.Sys\HLab.Sys.Windows.Monitors\HLab.Sys.Windows.Monitors.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Daemon plumbing lifted verbatim from LittleBigMouse.Ui.Avalonia/Remote (GPL-3.0), so we
+         don't drag in its HLab.Mvvm UI stack. Keep in sync with upstream when pulling. -->
+    <Compile Include="..\..\upstream\LittleBigMouse\LittleBigMouse.Ui\LittleBigMouse.Ui.Avalonia\Remote\IProcessHost.cs" Link="Engine\Cursor\Upstream\IProcessHost.cs" />
+    <Compile Include="..\..\upstream\LittleBigMouse\LittleBigMouse.Ui\LittleBigMouse.Ui.Avalonia\Remote\SystemProcessHost.cs" Link="Engine\Cursor\Upstream\SystemProcessHost.cs" />
+    <Compile Include="..\..\upstream\LittleBigMouse\LittleBigMouse.Ui\LittleBigMouse.Ui.Avalonia\Remote\DaemonProcessManager.cs" Link="Engine\Cursor\Upstream\DaemonProcessManager.cs" />
+    <Compile Include="..\..\upstream\LittleBigMouse\LittleBigMouse.Ui\LittleBigMouse.Ui.Avalonia\Remote\LocalIpcClient.cs" Link="Engine\Cursor\Upstream\LocalIpcClient.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Stage the Rust hook next to the exe under the name DaemonProcessManager looks for. -->
+    <None Include="..\..\upstream\LittleBigMouse\LittleBigMouse-Hook-Rust\target\release\lbm-hook.exe"
+          Condition="Exists('..\..\upstream\LittleBigMouse\LittleBigMouse-Hook-Rust\target\release\lbm-hook.exe')"
+          Link="LittleBigMouse.Hook.exe" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\upstream\LittleBigMouse\LittleBigMouse-Hook-Rust\target\debug\lbm-hook.exe"
+          Condition="!Exists('..\..\upstream\LittleBigMouse\LittleBigMouse-Hook-Rust\target\release\lbm-hook.exe') And Exists('..\..\upstream\LittleBigMouse\LittleBigMouse-Hook-Rust\target\debug\lbm-hook.exe')"
+          Link="LittleBigMouse.Hook.exe" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

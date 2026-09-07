@@ -3,7 +3,7 @@
 
   <!--
     Pixelscreens theme: Linear-style dark chrome (flat panels, hairline borders,
-    muted text, one indigo accent) with retro pixel accents (Press Start 2P for
+    muted text, monochrome: white is the only accent, red only for errors) with retro pixel accents (Press Start 2P for
     headings and labels, crisp 1px rules, no rounded blobs).
   -->
 
@@ -17,11 +17,11 @@
       <Color x:Key="Px.Text">#E8E8EE</Color>
       <Color x:Key="Px.TextMuted">#8B8B98</Color>
       <Color x:Key="Px.TextDim">#5B5B68</Color>
-      <Color x:Key="Px.Accent">#7C7CFF</Color>
-      <Color x:Key="Px.AccentSoft">#2A2A4A</Color>
-      <Color x:Key="Px.Good">#4CE0A0</Color>
-      <Color x:Key="Px.Warn">#FFB454</Color>
-      <Color x:Key="Px.Bad">#FF6B6B</Color>
+      <Color x:Key="Px.Accent">#FFFFFF</Color>
+      <Color x:Key="Px.AccentSoft">#26262B</Color>
+      <Color x:Key="Px.Good">#FFFFFF</Color>
+      <Color x:Key="Px.Warn">#B0B0B8</Color>
+      <Color x:Key="Px.Bad">#FF5C5C</Color>
 
       <SolidColorBrush x:Key="Px.Brush.Bg" Color="{StaticResource Px.Bg}" />
       <SolidColorBrush x:Key="Px.Brush.Panel" Color="{StaticResource Px.Panel}" />
@@ -129,7 +129,7 @@
     <Setter Property="Foreground" Value="#0E0E12" />
   </Style>
   <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
-    <Setter Property="Background" Value="#9A9AFF" />
+    <Setter Property="Background" Value="#D8D8DE" />
   </Style>
 
   <!-- Status chip -->

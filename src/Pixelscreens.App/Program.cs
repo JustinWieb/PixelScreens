@@ -1,4 +1,5 @@
 using Avalonia;
+using ReactiveUI.Avalonia;
 
 namespace Pixelscreens;
 
@@ -12,5 +13,6 @@ internal static class Program
         AppBuilder.Configure<App>()
             .UsePlatformDetect()
             .WithInterFont()
+            .UseReactiveUI(_ => { })
             .LogToTrace();
 }
