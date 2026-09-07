@@ -30,8 +30,9 @@
             BorderBrush="{StaticResource Px.Brush.Border}" BorderThickness="0,0,1,0">
       <StackPanel Margin="0,12,0,0">
         <RadioButton Classes="nav" GroupName="nav" Content="PROFILES" IsChecked="{Binding SelectedTab, Converter={x:Static px:TabConverters.Is}, ConverterParameter=0}" />
-        <RadioButton Classes="nav" GroupName="nav" Content="LAYOUT"   IsChecked="{Binding SelectedTab, Converter={x:Static px:TabConverters.Is}, ConverterParameter=1}" />
-        <RadioButton Classes="nav" GroupName="nav" Content="SETTINGS" IsChecked="{Binding SelectedTab, Converter={x:Static px:TabConverters.Is}, ConverterParameter=2}" />
+        <RadioButton Classes="nav" GroupName="nav" Content="AUDIO"    IsChecked="{Binding SelectedTab, Converter={x:Static px:TabConverters.Is}, ConverterParameter=1}" />
+        <RadioButton Classes="nav" GroupName="nav" Content="LAYOUT"   IsChecked="{Binding SelectedTab, Converter={x:Static px:TabConverters.Is}, ConverterParameter=2}" />
+        <RadioButton Classes="nav" GroupName="nav" Content="SETTINGS" IsChecked="{Binding SelectedTab, Converter={x:Static px:TabConverters.Is}, ConverterParameter=3}" />
       </StackPanel>
     </Border>
 
@@ -63,12 +64,56 @@
                         <Border Classes="chip" IsVisible="{Binding HasBadge}" VerticalAlignment="Center">
                           <TextBlock Classes="pixel" FontSize="7" Text="{Binding Badge}" Foreground="{StaticResource Px.Brush.Accent}" />
                         </Border>
+                        <px:HotkeyBox Gesture="{Binding Hotkey}" ToolTip.Tip="Click, then press a key combination. Backspace clears." />
                         <Button Content="Apply" Command="{Binding ApplyCommand}" IsVisible="{Binding CanApply}" />
                         <Button Content="Delete" Command="{Binding DeleteCommand}" />
                       </StackPanel>
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="{Binding Name}" />
                         <TextBlock Classes="dim" Text="{Binding Uuid}" />
+                      </StackPanel>
+                    </DockPanel>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </Border>
+      </DockPanel>
+      </Panel>
+
+      <!-- AUDIO -->
+      <Panel IsVisible="{Binding ShowAudio}">
+      <DockPanel DataContext="{Binding Audio}" x:DataType="vm:AudioViewModel">
+        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,16">
+          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top" Margin="16,0,0,0">
+            <TextBox Width="200" Watermark="new audio profile name" Text="{Binding NewProfileName}" IsEnabled="{Binding !Busy}" />
+            <Button Classes="primary" Content="Save current" Command="{Binding SaveCurrentCommand}" IsEnabled="{Binding !Busy}" />
+            <Button Content="Refresh" Command="{Binding RefreshCommand}" IsEnabled="{Binding !Busy}" />
+          </StackPanel>
+          <StackPanel>
+            <TextBlock Classes="pixel" Text="AUDIO PROFILES" />
+            <TextBlock Classes="muted" Margin="0,6,0,0" TextWrapping="Wrap" Text="Saved default speaker, microphone, and volumes. Switch them with one click, a hotkey, or from the tray." />
+          </StackPanel>
+        </DockPanel>
+        <Border Classes="panel" Padding="0">
+          <ScrollViewer>
+            <ItemsControl ItemsSource="{Binding Profiles}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:AudioRow">
+                  <Border Classes="row">
+                    <DockPanel>
+                      <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <Border Classes="chip" IsVisible="{Binding HasBadge}" VerticalAlignment="Center">
+                          <TextBlock Classes="pixel" FontSize="7" Text="{Binding Badge}" Foreground="{StaticResource Px.Brush.Accent}" />
+                        </Border>
+                        <px:HotkeyBox Gesture="{Binding Hotkey}" ToolTip.Tip="Click, then press a key combination. Backspace clears." />
+                        <Button Content="Switch" Command="{Binding ApplyCommand}" IsVisible="{Binding !IsActive}" />
+                        <Button Content="Delete" Command="{Binding DeleteCommand}" />
+                      </StackPanel>
+                      <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Name}" />
+                        <TextBlock Classes="dim" Text="{Binding Detail}" TextWrapping="Wrap" />
                       </StackPanel>
                     </DockPanel>
                   </Border>
@@ -150,11 +195,65 @@
 
       <!-- SETTINGS -->
       <Panel IsVisible="{Binding ShowSettings}">
-      <StackPanel DataContext="{Binding Settings}" x:DataType="vm:SettingsViewModel" Spacing="16">
+      <ScrollViewer DataContext="{Binding Options}" x:DataType="vm:SettingsViewModel">
+      <StackPanel Spacing="16" Margin="0,0,8,0">
         <StackPanel>
           <TextBlock Classes="pixel" Text="SETTINGS" />
-          <TextBlock Classes="muted" Margin="0,6,0,0" Text="Pixelscreens is black and white on purpose. Windows can match it." />
+          <TextBlock Classes="muted" Margin="0,6,0,0" Text="Startup, hotkeys, cursor engine, and Windows skin." />
         </StackPanel>
+
+        <Border Classes="panel">
+          <StackPanel Spacing="10">
+            <TextBlock Classes="pixel" Text="STARTUP" />
+            <CheckBox Content="Start with Windows (signed in, no prompt)" IsChecked="{Binding StartWithWindows}" />
+            <CheckBox Content="Start minimised to the tray" IsChecked="{Binding StartMinimized}" />
+            <CheckBox Content="Close button hides to the tray (Exit is in the tray menu)" IsChecked="{Binding CloseToTray}" />
+            <CheckBox Content="Enable the cursor engine when PixelScreens starts" IsChecked="{Binding EnableCursorOnStart}" />
+          </StackPanel>
+        </Border>
+
+        <Border Classes="panel">
+          <StackPanel Spacing="10">
+            <TextBlock Classes="pixel" Text="HOTKEYS" />
+            <TextBlock Classes="muted" TextWrapping="Wrap" Text="System-wide. Per-profile hotkeys live on each row in Profiles and Audio. Click a box, press keys, Backspace clears." />
+            <Grid ColumnDefinitions="220,Auto" RowDefinitions="Auto,8,Auto">
+              <TextBlock Text="Show PixelScreens" VerticalAlignment="Center" />
+              <px:HotkeyBox Grid.Column="1" Gesture="{Binding ShowHotkey}" />
+              <TextBlock Grid.Row="2" Text="Toggle cursor engine" VerticalAlignment="Center" />
+              <px:HotkeyBox Grid.Row="2" Grid.Column="1" Gesture="{Binding ToggleCursorHotkey}" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <Border Classes="panel">
+          <StackPanel Spacing="10">
+            <DockPanel>
+              <Button DockPanel.Dock="Right" Classes="primary" Content="Apply" Command="{Binding ApplyCursorCommand}" IsEnabled="{Binding CursorDirty}" />
+              <TextBlock Classes="pixel" Text="CURSOR ENGINE" VerticalAlignment="Center" />
+            </DockPanel>
+            <Grid ColumnDefinitions="220,240" RowDefinitions="Auto,8,Auto,8,Auto,8,Auto">
+              <TextBlock Text="Crossing algorithm" VerticalAlignment="Center" />
+              <ComboBox Grid.Column="1" ItemsSource="{Binding Algorithms}" SelectedItem="{Binding Algorithm}" HorizontalAlignment="Stretch" />
+              <TextBlock Grid.Row="2" Text="Max travel distance (mm)" VerticalAlignment="Center" />
+              <NumericUpDown Grid.Row="2" Grid.Column="1" Value="{Binding MaxTravelDistance}" Minimum="0" Maximum="5000" Increment="10" FormatString="0" ShowButtonSpinner="False" />
+              <TextBlock Grid.Row="4" Text="Rescue shortcut" VerticalAlignment="Center" ToolTip.Tip="Hold this to free a trapped cursor" />
+              <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding RescueShortcut}" />
+            </Grid>
+            <TextBlock Classes="muted" Text="Cross follows the shortest straight line between screens. Strait keeps the cursor at the same height." TextWrapping="Wrap" />
+            <WrapPanel>
+              <CheckBox Content="Loop left to right" IsChecked="{Binding LoopX}" Margin="0,0,16,0" />
+              <CheckBox Content="Loop top to bottom" IsChecked="{Binding LoopY}" Margin="0,0,16,0" />
+              <CheckBox Content="Scale pointer size per screen" IsChecked="{Binding AdjustPointer}" Margin="0,0,16,0" />
+              <CheckBox Content="Scale pointer speed per screen" IsChecked="{Binding AdjustSpeed}" Margin="0,0,16,0" />
+              <CheckBox Content="Allow gaps between screens" IsChecked="{Binding AllowDiscontinuity}" Margin="0,0,16,0" />
+              <CheckBox Content="Allow overlapping screens" IsChecked="{Binding AllowOverlaps}" Margin="0,0,16,0" />
+              <CheckBox Content="Pause when a game captures the mouse" IsChecked="{Binding FreelookEnabled}" Margin="0,0,16,0" />
+            </WrapPanel>
+            <TextBlock Classes="dim" Text="Pause in these apps (one per line, part of the exe path is enough, e.g. \\steam\\)" />
+            <TextBox Text="{Binding ExcludedApps}" AcceptsReturn="True" Height="90" TextWrapping="NoWrap" FontFamily="Consolas" />
+          </StackPanel>
+        </Border>
+
         <Border Classes="panel">
           <DockPanel>
             <Button DockPanel.Dock="Right" Classes="primary" Content="Match Windows to this theme" Command="{Binding MatchWindowsCommand}" VerticalAlignment="Center" Margin="16,0,0,0" />
@@ -162,11 +261,11 @@
               <TextBlock Classes="pixel" Text="WINDOWS SKIN" />
               <TextBlock Classes="muted" TextWrapping="Wrap" Text="Sets Windows to dark mode with a white accent on title bars, turns off transparency, and keeps the taskbar black." />
               <TextBlock Classes="dim" Text="{Binding WindowsThemeState}" />
-              <TextBlock Classes="dim" Text="{Binding Status}" IsVisible="{Binding Status, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
             </StackPanel>
           </DockPanel>
         </Border>
       </StackPanel>
+      </ScrollViewer>
       </Panel>
 
     </Grid>

@@ -37,6 +37,18 @@
       <SolidColorBrush x:Key="Px.Brush.Warn" Color="{StaticResource Px.Warn}" />
       <SolidColorBrush x:Key="Px.Brush.Bad" Color="{StaticResource Px.Bad}" />
 
+      <!-- Kill the Fluent blue everywhere: check boxes, combo focus, selection. -->
+      <Color x:Key="SystemAccentColor">#F2F2F2</Color>
+      <Color x:Key="SystemAccentColorDark1">#D9D9D9</Color>
+      <Color x:Key="SystemAccentColorDark2">#BFBFBF</Color>
+      <Color x:Key="SystemAccentColorDark3">#A6A6A6</Color>
+      <Color x:Key="SystemAccentColorLight1">#FFFFFF</Color>
+      <Color x:Key="SystemAccentColorLight2">#FFFFFF</Color>
+      <Color x:Key="SystemAccentColorLight3">#FFFFFF</Color>
+      <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundChecked" Color="#0A0A0A" />
+      <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundCheckedPointerOver" Color="#0A0A0A" />
+      <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundCheckedPressed" Color="#0A0A0A" />
+
       <FontFamily x:Key="Px.Font.Pixel">avares://Pixelscreens/Assets/Fonts#Press Start 2P</FontFamily>
       <FontFamily x:Key="Px.Font.Body">fonts:Inter#Inter</FontFamily>
     </ResourceDictionary>
@@ -147,6 +159,16 @@
     <Setter Property="CornerRadius" Value="0" />
     <Setter Property="Foreground" Value="{StaticResource Px.Brush.Text}" />
     <Setter Property="MinHeight" Value="30" />
+  </Style>
+
+  <Style Selector="CheckBox">
+    <Setter Property="Foreground" Value="{StaticResource Px.Brush.Text}" />
+  </Style>
+  <Style Selector="ComboBox">
+    <Setter Property="Background" Value="{StaticResource Px.Brush.Bg}" />
+    <Setter Property="BorderBrush" Value="{StaticResource Px.Brush.BorderStrong}" />
+    <Setter Property="CornerRadius" Value="0" />
+    <Setter Property="Foreground" Value="{StaticResource Px.Brush.Text}" />
   </Style>
 
   <Style Selector="ScrollViewer">

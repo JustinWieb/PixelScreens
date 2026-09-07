@@ -9,10 +9,28 @@ namespace Pixelscreens.ViewModels;
 public sealed partial class ProfilesViewModel : ObservableObject
 {
     private readonly DisplayProfileService _service;
+    private readonly AppSettings _settings;
+    private readonly Action _hotkeysChanged;
 
-    public ProfilesViewModel(DisplayProfileService service)
+    public ProfilesViewModel(DisplayProfileService service, AppSettings settings, Action hotkeysChanged)
     {
         _service = service;
+        _settings = settings;
+        _hotkeysChanged = hotkeysChanged;
+    }
+
+    public async Task ApplyByUuidAsync(string uuid)
+    {
+        var row = Profiles.FirstOrDefault(r => r.Uuid == uuid);
+        if (row is not null && row.CanApply) await ApplyAsync(row);
+    }
+
+    internal void HotkeyChanged(ProfileRow row, string? gesture)
+    {
+        var key = $"profile:{row.Uuid}";
+        if (string.IsNullOrEmpty(gesture)) _settings.Hotkeys.Remove(key); else _settings.Hotkeys[key] = gesture;
+        _settings.Save();
+        _hotkeysChanged();
     }
 
     public ObservableCollection<ProfileRow> Profiles { get; } = new();
@@ -32,7 +50,7 @@ public sealed partial class ProfilesViewModel : ObservableObject
             Profiles.Clear();
             foreach (var p in items)
             {
-                Profiles.Add(new ProfileRow(p, _service.IsActive(p), p.HasUsableSavedConfiguration(out _), this));
+                Profiles.Add(new ProfileRow(p, _service.IsActive(p), p.HasUsableSavedConfiguration(out _), this, _settings));
             }
             EngineOk = true;
             Status = $"display engine ok · {Profiles.Count} profile(s)";
@@ -104,6 +122,7 @@ public sealed partial class ProfilesViewModel : ObservableObject
         {
             var ok = await _service.DeleteAsync(row.Item);
             Status = ok ? $"deleted \"{row.Name}\"" : $"could not delete \"{row.Name}\"";
+            if (ok) { _settings.Hotkeys.Remove($"profile:{row.Uuid}"); _settings.Save(); _hotkeysChanged(); }
         }
         catch (Exception ex)
         {
@@ -121,13 +140,17 @@ public sealed partial class ProfileRow : ObservableObject
 {
     private readonly ProfilesViewModel _owner;
 
-    public ProfileRow(ProfileItem item, bool isActive, bool isUsable, ProfilesViewModel owner)
+    public ProfileRow(ProfileItem item, bool isActive, bool isUsable, ProfilesViewModel owner, AppSettings settings)
     {
         Item = item;
         IsActive = isActive;
         IsUsable = isUsable;
         _owner = owner;
+        settings.Hotkeys.TryGetValue($"profile:{Uuid}", out _hotkey);
     }
+
+    [ObservableProperty] private string? _hotkey;
+    partial void OnHotkeyChanged(string? value) => _owner.HotkeyChanged(this, value);
 
     public ProfileItem Item { get; }
     public string Name => Item.Name;

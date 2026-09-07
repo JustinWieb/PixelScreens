@@ -15,16 +15,16 @@ public sealed class CursorEngineService : IDisposable
 {
     private static readonly TimeSpan SendTimeout = TimeSpan.FromSeconds(5);
 
-    private readonly ILayoutOptions _options;
+    private readonly PixelLayoutOptions _options;
     private readonly WindowsLayoutPersistence _persistence;
     private readonly SystemMonitorsService _monitors;
     private readonly WindowsLayoutFactory _factory;
     private readonly DaemonProcessManager _daemon;
     private LocalIpcClient? _ipc;
 
-    public CursorEngineService()
+    public CursorEngineService(AppSettings settings)
     {
-        _options = new PixelLayoutOptions();
+        _options = new PixelLayoutOptions(settings);
         _persistence = new WindowsLayoutPersistence();
         _monitors = new SystemMonitorsService();
         _factory = new WindowsLayoutFactory(_monitors, () => new MonitorsLayout(_options), _persistence);
@@ -64,6 +64,13 @@ public sealed class CursorEngineService : IDisposable
         Log("-> Run");
         await _ipc.SendMessageAsync(new CommandMessage(LittleBigMouseCommand.Run).Serialize(), SendTimeout, ct);
         IsRunning = true;
+    }
+
+    /// <summary>Re-read cursor options from settings and push them to the daemon if it is running.</summary>
+    public async Task ApplyOptionsAsync(AppSettings settings, CancellationToken ct = default)
+    {
+        _options.Apply(settings);
+        if (IsRunning) await PushLayoutAsync(ct);
     }
 
     /// <summary>Push the current layout to a running daemon without restarting it.</summary>
