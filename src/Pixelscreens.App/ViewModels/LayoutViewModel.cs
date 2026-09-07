@@ -21,8 +21,8 @@ public sealed partial class LayoutViewModel : ObservableObject
             var ev = System.Text.RegularExpressions.Regex.Match(msg, "<Event>([^<]+)</Event>").Groups[1].Value;
             if (ev.Length > 0 && ev != "FocusChanged") Status = ev switch
             {
-                "Running" => "cursor fix on",
-                "Stopped" => "cursor fix off",
+                "Running" => "enabled",
+                "Stopped" => "disabled",
                 "Loaded" => "layout loaded by cursor engine",
                 "LoadFailed" => "cursor engine rejected the layout (see log)",
                 "Dead" => "cursor engine connection lost",
@@ -78,7 +78,7 @@ public sealed partial class LayoutViewModel : ObservableObject
             Dirty = false;
             EngineOk = true;
             IsRunning = _engine.IsRunning;
-            Status = $"{Monitors.Count} monitor(s) found" + (IsRunning ? " · cursor fix on" : " · cursor fix off");
+            Status = $"{Monitors.Count} monitor(s) found" + (IsRunning ? " · enabled" : " · disabled");
         }
         catch (Exception ex)
         {
@@ -130,12 +130,12 @@ public sealed partial class LayoutViewModel : ObservableObject
     private async Task StartAsync()
     {
         Busy = true;
-        Status = "turning cursor fix on...";
+        Status = "enabling...";
         try
         {
             await _engine.StartAsync();
             IsRunning = true;
-            Status = "cursor fix on";
+            Status = "enabled";
         }
         catch (Exception ex)
         {
@@ -155,7 +155,7 @@ public sealed partial class LayoutViewModel : ObservableObject
         {
             await _engine.StopAsync();
             IsRunning = false;
-            Status = "cursor fix off";
+            Status = "disabled";
         }
         catch (Exception ex)
         {

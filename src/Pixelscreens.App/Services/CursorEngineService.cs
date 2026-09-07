@@ -28,7 +28,7 @@ public sealed class CursorEngineService : IDisposable
         _persistence = new WindowsLayoutPersistence();
         _monitors = new SystemMonitorsService();
         _factory = new WindowsLayoutFactory(_monitors, () => new MonitorsLayout(_options), _persistence);
-        _daemon = new DaemonProcessManager();
+        _daemon = new DaemonProcessManager(new HiddenProcessHost());
     }
 
     public MonitorsLayout? Layout { get; private set; }
