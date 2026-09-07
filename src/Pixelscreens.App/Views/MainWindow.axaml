@@ -1,0 +1,125 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Pixelscreens.ViewModels"
+        xmlns:px="using:Pixelscreens.Controls"
+        x:Class="Pixelscreens.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="Pixelscreens"
+        Width="980" Height="640"
+        MinWidth="720" MinHeight="480"
+        WindowStartupLocation="CenterScreen">
+
+  <Grid RowDefinitions="Auto,*,Auto" ColumnDefinitions="200,*">
+
+    <!-- Title bar strip -->
+    <Border Grid.Row="0" Grid.ColumnSpan="2" Background="{StaticResource Px.Brush.Panel}"
+            BorderBrush="{StaticResource Px.Brush.Border}" BorderThickness="0,0,0,1" Padding="16,12">
+      <DockPanel>
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <px:PixelSprite Width="24" PixelSize="3" Speed="0" BodyBrush="{StaticResource Px.Brush.Accent}" EyeBrush="{StaticResource Px.Brush.Bg}" />
+          <TextBlock Classes="pixel title" Text="PIXELSCREENS" VerticalAlignment="Center" />
+        </StackPanel>
+        <TextBlock DockPanel.Dock="Right" Classes="dim" HorizontalAlignment="Right" VerticalAlignment="Center"
+                   Text="display templates · cursor layout" />
+      </DockPanel>
+    </Border>
+
+    <!-- Left nav -->
+    <Border Grid.Row="1" Grid.Column="0" Background="{StaticResource Px.Brush.Panel}"
+            BorderBrush="{StaticResource Px.Brush.Border}" BorderThickness="0,0,1,0">
+      <StackPanel Margin="0,12,0,0">
+        <RadioButton Classes="nav" GroupName="nav" Content="PROFILES" IsChecked="{Binding SelectedTab, Converter={x:Static px:TabConverters.Is}, ConverterParameter=0}" />
+        <RadioButton Classes="nav" GroupName="nav" Content="LAYOUT"   IsChecked="{Binding SelectedTab, Converter={x:Static px:TabConverters.Is}, ConverterParameter=1}" />
+        <RadioButton Classes="nav" GroupName="nav" Content="SETTINGS" IsChecked="{Binding SelectedTab, Converter={x:Static px:TabConverters.Is}, ConverterParameter=2}" />
+      </StackPanel>
+    </Border>
+
+    <!-- Content -->
+    <Grid Grid.Row="1" Grid.Column="1" Margin="24">
+
+      <!-- PROFILES -->
+      <DockPanel IsVisible="{Binding ShowProfiles}">
+        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,16">
+          <StackPanel>
+            <TextBlock Classes="pixel" Text="DISPLAY PROFILES" />
+            <TextBlock Classes="muted" Margin="0,6,0,0" Text="Saved monitor arrangements. Apply one to switch every screen at once." />
+          </StackPanel>
+          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+            <Button Content="Refresh" Command="{Binding RefreshCommand}" />
+            <Button Classes="primary" Content="Save current" IsEnabled="False" />
+          </StackPanel>
+        </DockPanel>
+        <Border Classes="panel" Padding="0">
+          <ScrollViewer>
+            <ItemsControl ItemsSource="{Binding Profiles}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:ProfileRow">
+                  <Border Classes="row">
+                    <DockPanel>
+                      <Border DockPanel.Dock="Right" Classes="chip" IsVisible="{Binding HasBadge}" VerticalAlignment="Center">
+                        <TextBlock Classes="pixel" FontSize="7" Text="{Binding Badge}" Foreground="{StaticResource Px.Brush.Accent}" />
+                      </Border>
+                      <StackPanel>
+                        <TextBlock Text="{Binding Name}" />
+                        <TextBlock Classes="dim" Text="{Binding Uuid}" />
+                      </StackPanel>
+                    </DockPanel>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </Border>
+      </DockPanel>
+
+      <!-- LAYOUT -->
+      <DockPanel IsVisible="{Binding ShowLayout}">
+        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,16">
+          <TextBlock Classes="pixel" Text="PHYSICAL LAYOUT" />
+          <TextBlock Classes="muted" Margin="0,6,0,0" Text="Where your screens really sit, so the cursor crosses edges where it should. Engine wiring comes next." />
+        </StackPanel>
+        <Border Classes="panel" Padding="0">
+          <ItemsControl ItemsSource="{Binding Screens}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:ScreenRow">
+                <Border Classes="row">
+                  <Grid ColumnDefinitions="*,140,120,80,Auto">
+                    <TextBlock Grid.Column="0" Text="{Binding Name}" />
+                    <TextBlock Grid.Column="1" Classes="muted" Text="{Binding Resolution}" />
+                    <TextBlock Grid.Column="2" Classes="muted" Text="{Binding Position}" />
+                    <TextBlock Grid.Column="3" Classes="muted" Text="{Binding Scale}" />
+                    <Border Grid.Column="4" Classes="chip" IsVisible="{Binding HasBadge}">
+                      <TextBlock Classes="pixel" FontSize="7" Text="{Binding Badge}" Foreground="{StaticResource Px.Brush.Accent}" />
+                    </Border>
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </Border>
+      </DockPanel>
+
+      <!-- SETTINGS -->
+      <StackPanel IsVisible="{Binding ShowSettings}">
+        <TextBlock Classes="pixel" Text="SETTINGS" />
+        <TextBlock Classes="muted" Margin="0,6,0,0" Text="Nothing here yet." />
+      </StackPanel>
+
+    </Grid>
+
+    <!-- Footer: status + wandering sprite -->
+    <Border Grid.Row="2" Grid.ColumnSpan="2" Background="{StaticResource Px.Brush.Panel}"
+            BorderBrush="{StaticResource Px.Brush.Border}" BorderThickness="0,1,0,0" Padding="16,6">
+      <Grid ColumnDefinitions="Auto,*">
+        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <Ellipse Width="6" Height="6" Fill="{StaticResource Px.Brush.Good}" IsVisible="{Binding EngineOk}" />
+          <Ellipse Width="6" Height="6" Fill="{StaticResource Px.Brush.Bad}" IsVisible="{Binding !EngineOk}" />
+          <TextBlock Classes="dim" Text="{Binding EngineStatus}" VerticalAlignment="Center" />
+        </StackPanel>
+        <px:PixelSprite Grid.Column="1" Margin="24,0,0,0" PixelSize="2" Speed="30"
+                        BodyBrush="{StaticResource Px.Brush.TextDim}" EyeBrush="{StaticResource Px.Brush.Bg}" />
+      </Grid>
+    </Border>
+
+  </Grid>
+</Window>

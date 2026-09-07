@@ -1,0 +1,22 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Pixelscreens.App/Pixelscreens.App.csproj" />
+  </Folder>
+  <Folder Name="/upstream/" />
+  <Folder Name="/upstream/DisplayMagician/">
+    <Project Path="upstream/DisplayMagician/DisplayMagicianShared/DisplayMagicianShared.csproj" />
+  </Folder>
+  <Folder Name="/upstream/LittleBigMouse/" />
+  <Folder Name="/upstream/LittleBigMouse/HLab.Core/">
+    <Project Path="upstream/LittleBigMouse/HLab.Core/HLab.Base.ReactiveUI/HLab.Base.ReactiveUI.csproj" />
+    <Project Path="upstream/LittleBigMouse/HLab.Core/HLab.Base/HLab.Base.csproj" />
+    <Project Path="upstream/LittleBigMouse/HLab.Core/HLab.ColorTools/HLab.ColorTools.csproj" />
+    <Project Path="upstream/LittleBigMouse/HLab.Core/HLab.Geo/HLab.Geo.csproj" />
+  </Folder>
+  <Folder Name="/upstream/LittleBigMouse/LittleBigMouse.Core/">
+    <Project Path="upstream/LittleBigMouse/LittleBigMouse.Core/LittleBigMouse.DisplayLayout/LittleBigMouse.DisplayLayout.csproj" />
+  </Folder>
+  <Folder Name="/upstream/LittleBigMouse/LittleBigMouse.Core/LittleBigMouse.Zones/">
+    <Project Path="upstream/LittleBigMouse/LittleBigMouse.Core/LittleBigMouse.Zones/LittleBigMouse.Zoning.csproj" />
+  </Folder>
+</Solution>
