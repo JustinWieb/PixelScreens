@@ -313,6 +313,12 @@
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
+            <Expander Header="Colour wheel" Padding="0">
+              <StackPanel Spacing="8" Margin="0,8,0,0">
+                <ColorView x:Name="AccentWheel" Color="{Binding WheelColor, Mode=TwoWay}" IsAlphaEnabled="False" IsColorPaletteVisible="False" IsComponentSliderVisible="True" IsHexInputVisible="True" Width="380" HorizontalAlignment="Left" />
+                <Button Content="Apply this colour" Command="{Binding ApplyWheelCommand}" />
+              </StackPanel>
+            </Expander>
             <StackPanel Orientation="Horizontal" Spacing="8">
               <TextBlock Text="Custom" VerticalAlignment="Center" />
               <TextBox Width="120" Watermark="#7C7CFF" Text="{Binding CustomHex}" />

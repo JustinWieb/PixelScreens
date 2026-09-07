@@ -153,6 +153,14 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private bool _webSearch;
     [ObservableProperty] private string _accentHex = "#0078D4";
     [ObservableProperty] private string _customHex = "";
+    [ObservableProperty] private Avalonia.Media.Color _wheelColor = Avalonia.Media.Color.Parse("#7C7CFF");
+
+    [RelayCommand]
+    private void ApplyWheel()
+    {
+        var c = WheelColor;
+        PickAccent($"#{c.R:X2}{c.G:X2}{c.B:X2}");
+    }
 
     public string[] Palette { get; } =
     {
@@ -273,6 +281,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             Transparency = WindowsThemeService.ReadTransparency();
             WebSearch = WindowsThemeService.ReadWebSearch();
             AccentHex = WindowsThemeService.ReadAccentHex();
+            try { WheelColor = Avalonia.Media.Color.Parse(AccentHex); } catch { /* keep default */ }
             _loading = false;
             WindowsThemeState = $"Windows: {(dark ? "dark" : "light")} · accent {AccentHex}";
         }
