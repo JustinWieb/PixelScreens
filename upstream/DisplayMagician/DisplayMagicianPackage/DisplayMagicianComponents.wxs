@@ -1,0 +1,35 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+	<Fragment>
+		<ComponentGroup Id="DisplayMagicianComponents" Directory="INSTALLFOLDER">
+			<Component>
+				<RegistryKey Root="HKLM" Key="Software\DisplayMagician" ForceDeleteOnUninstall="yes"/>
+				<RegistryValue Root="HKLM" Key="Software\DisplayMagician" Name="InstalledVersion" Value="!(bind.fileVersion.DisplayMagicianExe)"/>
+				<RegistryValue Root="HKLM" Key="Software\DisplayMagician" Name="InstalledDate" Value="[Date]"/>
+				<RegistryValue Root="HKLM" Key="Software\DisplayMagician" Name="InstalledDir" Value="[INSTALLFOLDER]"/>
+			</Component>
+			<Component>
+					<File Source="$(var.DmPublishDir)DisplayMagician.exe" Id="DisplayMagicianExe" KeyPath="yes" />
+				</Component>
+
+			<File Source="$(var.DmPublishDir)WebView2Loader.dll" />
+
+			<!-- Sparse MSIX identity package — installed alongside the app and registered via custom action -->
+			<Component Id="IdentityMsixComponent">
+				<File Id="IdentityMsixFile"
+					  Source="Packages\DisplayMagicianIdentityPkg.msix"
+					  KeyPath="yes" />
+			</Component>
+		</ComponentGroup>
+
+		<ComponentGroup Id="DisplayMagicianConsoleComponents" Directory="INSTALLFOLDER">
+			<Component>
+				<!-- Install the DisplayMagician Console file -->
+				<File Source="$(var.DmConsolePublishDir)DisplayMagicianConsole.exe" />
+				<!-- Add the install location to the system PATH so that users can use the DisplayMagicianConsole.exe from anywhere on the PC -->
+				<Environment Name="PATH" System="yes" Value="[INSTALLFOLDER]" Action="set" Part="last"/>
+			</Component>
+		</ComponentGroup>
+
+		<Icon Id="dm.exe" SourceFile="DisplayMagician.ico" />
+	</Fragment>
+</Wix>
