@@ -52,6 +52,11 @@ public sealed class LayoutCanvas : Control
     /// <summary>Raised after a drag ends, so the owner can persist or push the layout to the engine.</summary>
     public event EventHandler? LayoutChanged;
 
+    /// <summary>Raised when a monitor box is clicked (or empty space, with null).</summary>
+    public event EventHandler<MonitorBox?>? MonitorClicked;
+
+    private bool _moved;
+
     private const double Padding = 32;
     private const double SnapMm = 5;
 
@@ -150,8 +155,17 @@ public sealed class LayoutCanvas : Control
         {
             var r = ToCanvas(m);
             r = new Rect(Math.Round(r.X) + 0.5, Math.Round(r.Y) + 0.5, Math.Round(r.Width), Math.Round(r.Height));
+            // Bezel frame (outer edge of the physical monitor), drawn dimmer behind the panel.
+            var bl = m.BezelLeftMm * _scale; var bt = m.BezelTopMm * _scale;
+            var br = m.BezelRightMm * _scale; var bb = m.BezelBottomMm * _scale;
+            if (bl + bt + br + bb > 0)
+            {
+                var outer = new Rect(r.X - Math.Round(bl), r.Y - Math.Round(bt), r.Width + Math.Round(bl + br), r.Height + Math.Round(bt + bb));
+                ctx.FillRectangle(GridBrush ?? Brushes.Transparent, outer);
+                ctx.DrawRectangle(border, outer);
+            }
             ctx.FillRectangle(BoxBrush ?? Brushes.Transparent, r);
-            ctx.DrawRectangle(m == _drag || m.IsPrimary ? accent : border, r);
+            ctx.DrawRectangle(m == _drag || m.IsSelected ? accent : border, r);
 
             // Corner ticks give it a retro "selection box" feel without rounded corners.
             const double tick = 6;
@@ -162,10 +176,12 @@ public sealed class LayoutCanvas : Control
             ctx.DrawLine(tp, r.BottomRight, r.BottomRight - new Vector(0, tick));
 
             if (r.Width < 40 || r.Height < 24) continue;
+            var compact = r.Width < 170 || r.Height < 110;
 
             var title = new FormattedText(m.Label, System.Globalization.CultureInfo.InvariantCulture,
                 FlowDirection.LeftToRight, new Typeface(font), 8, TextBrush) { MaxTextWidth = r.Width - 16 };
             ctx.DrawText(title, new Point(r.X + 8, r.Y + 8));
+            if (compact) continue;
 
             var sub = new FormattedText(m.Detail, System.Globalization.CultureInfo.InvariantCulture,
                 FlowDirection.LeftToRight, new Typeface(FontFamily.Default), 11, MutedBrush) { MaxTextWidth = r.Width - 16 };
@@ -183,18 +199,22 @@ public sealed class LayoutCanvas : Control
         var ms = Monitors;
         if (ms is null) return;
         var p = e.GetPosition(this);
+        var hit = false;
         // Topmost hit wins: iterate in reverse so later items (drawn on top) take precedence.
         for (var i = ms.Count - 1; i >= 0; i--)
         {
             if (!ToCanvas(ms[i]).Contains(p)) continue;
             _drag = ms[i];
+            _moved = false;
             _dragStartPointer = p;
             _dragStartMm = (_drag.XMm, _drag.YMm);
             e.Pointer.Capture(this);
             Cursor = new Cursor(StandardCursorType.SizeAll);
             InvalidateVisual();
+            hit = true;
             break;
         }
+        if (!hit) MonitorClicked?.Invoke(this, null);
     }
 
     protected override void OnPointerMoved(PointerEventArgs e)
@@ -204,6 +224,8 @@ public sealed class LayoutCanvas : Control
         var p = e.GetPosition(this);
         var dxMm = (p.X - _dragStartPointer.X) / _scale;
         var dyMm = (p.Y - _dragStartPointer.Y) / _scale;
+        if (Math.Abs(p.X - _dragStartPointer.X) + Math.Abs(p.Y - _dragStartPointer.Y) > 3) _moved = true;
+        if (!_moved) return;
         _drag.XMm = Math.Round((_dragStartMm.x + dxMm) / SnapMm) * SnapMm;
         _drag.YMm = Math.Round((_dragStartMm.y + dyMm) / SnapMm) * SnapMm;
     }
@@ -213,9 +235,11 @@ public sealed class LayoutCanvas : Control
         base.OnPointerReleased(e);
         if (_drag is null) return;
         e.Pointer.Capture(null);
+        var clicked = _drag;
         _drag = null;
         Cursor = Cursor.Default;
         InvalidateVisual();
-        LayoutChanged?.Invoke(this, EventArgs.Empty);
+        MonitorClicked?.Invoke(this, clicked);
+        if (_moved) LayoutChanged?.Invoke(this, EventArgs.Empty);
     }
 }

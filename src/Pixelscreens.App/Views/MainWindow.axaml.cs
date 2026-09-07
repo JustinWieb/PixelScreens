@@ -12,5 +12,9 @@ public partial class MainWindow : Window
         {
             if (DataContext is MainViewModel vm) await vm.Layout.CommitDragAsync();
         };
+        LayoutCanvas.MonitorClicked += (_, box) =>
+        {
+            if (DataContext is MainViewModel vm) vm.Layout.Select(box);
+        };
     }
 }

@@ -41,6 +41,16 @@ public sealed partial class LayoutViewModel : ObservableObject
     [ObservableProperty] private bool _busy;
     [ObservableProperty] private bool _dirty;
     [ObservableProperty] private string _lastDaemonMessage = "";
+    [ObservableProperty] private MonitorBox? _selected;
+
+    public bool HasSelection => Selected is not null;
+    partial void OnSelectedChanged(MonitorBox? value) => OnPropertyChanged(nameof(HasSelection));
+
+    public void Select(MonitorBox? box)
+    {
+        foreach (var m in Monitors) m.IsSelected = m == box;
+        Selected = box;
+    }
 
     [RelayCommand]
     public async Task RefreshAsync()
@@ -67,14 +77,21 @@ public sealed partial class LayoutViewModel : ObservableObject
                     HeightMm = proj.Height,
                     PixelWidth = (int)(src?.InPixel.Width ?? 0),
                     PixelHeight = (int)(src?.InPixel.Height ?? 0),
+                    BezelTopMm = Math.Round(m.PhysicalRotated.TopBorder, 1),
+                    BezelRightMm = Math.Round(m.PhysicalRotated.RightBorder, 1),
+                    BezelBottomMm = Math.Round(m.PhysicalRotated.BottomBorder, 1),
+                    BezelLeftMm = Math.Round(m.PhysicalRotated.LeftBorder, 1),
                 };
+                box.SeedDiagonal();
                 box.PropertyChanged += (_, e) =>
                 {
                     if (e.PropertyName is nameof(MonitorBox.XMm) or nameof(MonitorBox.YMm)) PushPosition(box);
                 };
+                box.Edited += (_, _) => PushSize(box);
                 Monitors.Add(box);
                 _byId[m.Id] = m;
             }
+            Select(Monitors.FirstOrDefault(b => b.IsPrimary) ?? Monitors.FirstOrDefault());
             Dirty = false;
             EngineOk = true;
             IsRunning = _engine.IsRunning;
@@ -99,6 +116,24 @@ public sealed partial class LayoutViewModel : ObservableObject
         Dirty = true;
     }
 
+    private void PushSize(MonitorBox box)
+    {
+        if (!_byId.TryGetValue(box.Id, out var m)) return;
+        var phys = m.PhysicalRotated;
+        if (Math.Abs(phys.Width - box.WidthMm) > 0.05) phys.Width = box.WidthMm;
+        if (Math.Abs(phys.Height - box.HeightMm) > 0.05) phys.Height = box.HeightMm;
+        if (Math.Abs(phys.TopBorder - box.BezelTopMm) > 0.05 || Math.Abs(phys.RightBorder - box.BezelRightMm) > 0.05 ||
+            Math.Abs(phys.BottomBorder - box.BezelBottomMm) > 0.05 || Math.Abs(phys.LeftBorder - box.BezelLeftMm) > 0.05)
+        {
+            m.BordersCustomized = true;
+            phys.TopBorder = box.BezelTopMm;
+            phys.RightBorder = box.BezelRightMm;
+            phys.BottomBorder = box.BezelBottomMm;
+            phys.LeftBorder = box.BezelLeftMm;
+        }
+        Dirty = true;
+    }
+
     /// <summary>Called by the canvas when a drag ends: persist and, if the hook is live, push the new zones.</summary>
     public async Task CommitDragAsync()
     {
@@ -118,7 +153,8 @@ public sealed partial class LayoutViewModel : ObservableObject
         {
             var ok = await Task.Run(() => _engine.Save());
             Dirty = !ok;
-            Status = ok ? "layout saved" : "layout save failed";
+            Status = ok ? "layout applied" : "layout save failed";
+            if (ok && IsRunning) await _engine.PushLayoutAsync();
         }
         catch (Exception ex)
         {

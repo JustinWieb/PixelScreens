@@ -140,6 +140,15 @@
     <Setter Property="Padding" Value="6,2" />
   </Style>
 
+  <Style Selector="TextBox, NumericUpDown">
+    <Setter Property="Background" Value="{StaticResource Px.Brush.Bg}" />
+    <Setter Property="BorderBrush" Value="{StaticResource Px.Brush.BorderStrong}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="0" />
+    <Setter Property="Foreground" Value="{StaticResource Px.Brush.Text}" />
+    <Setter Property="MinHeight" Value="30" />
+  </Style>
+
   <Style Selector="ScrollViewer">
     <Setter Property="Background" Value="Transparent" />
   </Style>
