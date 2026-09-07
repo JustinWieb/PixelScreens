@@ -1,0 +1,41 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+	<TargetFrameworks>net10.0</TargetFrameworks>
+	<AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+	  <Platforms>x64</Platforms>
+	<Version>2.5.0.0</Version>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Remove=".gitignore" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- DataGrid publishes on its own cadence and has no 12.1.1; it asks for
+         Avalonia >= 12.1.0, which 12.1.1 satisfies. -->
+    <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\HLab.Core\HLab.Mvvm.Annotations\HLab.Mvvm.Annotations.csproj" />
+    <ProjectReference Include="..\HLab.Base.Avalonia\HLab.Base.Avalonia.csproj" />
+    <ProjectReference Include="..\HLab.Icons.Avalonia\HLab.Icons.Avalonia.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaXaml Update="Lang\LocalizedLabel.axaml">
+      <Generator>MSBuild:Compile</Generator>
+    </AvaloniaXaml>
+    <AvaloniaXaml Update="Lang\LocalizedTextBox.axaml">
+      <Generator>MSBuild:Compile</Generator>
+    </AvaloniaXaml>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Lang\LocalizedLabel.xaml.cs">
+      <DependentUpon>LocalizedLabel.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="Lang\LocalizedTextBox.xaml.cs">
+      <DependentUpon>LocalizedTextBox.axaml</DependentUpon>
+    </Compile>
+  </ItemGroup>
+</Project>
