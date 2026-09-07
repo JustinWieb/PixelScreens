@@ -29,7 +29,7 @@ public partial class App : Application
             if (args.Contains("--tab=layout")) vm.SelectedTab = 2;
             if (args.Contains("--tab=settings")) vm.SelectedTab = 3;
 
-            var startHidden = args.Contains("--minimized") || vm.Settings.StartMinimized;
+            var startHidden = (args.Contains("--minimized") || vm.Settings.StartMinimized) && !args.Any(a => a.StartsWith("--tab="));
 
             vm.ShowRequested += ShowWindow;
 
