@@ -136,6 +136,8 @@ public sealed partial class ProfilesViewModel : ObservableObject
     }
 }
 
+public sealed record ScreenRect(int X, int Y, int W, int H, bool IsPrimary, string Name);
+
 public sealed partial class ProfileRow : ObservableObject
 {
     private readonly ProfilesViewModel _owner;
@@ -147,7 +149,28 @@ public sealed partial class ProfileRow : ObservableObject
         IsUsable = isUsable;
         _owner = owner;
         settings.Hotkeys.TryGetValue($"profile:{Uuid}", out _hotkey);
+        try
+        {
+            Screens = item.GetScreenPositions()
+                .Select(sp => new ScreenRect(sp.ScreenX, sp.ScreenY, sp.ScreenWidth, sp.ScreenHeight, sp.IsPrimary, sp.Name ?? ""))
+                .ToList();
+        }
+        catch
+        {
+            Screens = Array.Empty<ScreenRect>();
+        }
+        if (!isUsable)
+        {
+            item.HasUsableSavedConfiguration(out var msg);
+            Problem = string.IsNullOrWhiteSpace(msg) ? "Not all of this profile's displays are connected." : msg.Trim();
+        }
+        Summary = Screens.Count == 0 ? "" : $"{Screens.Count} screen(s) · " + string.Join(", ", Screens.Select(sc => $"{sc.W}x{sc.H}"));
     }
+
+    public IReadOnlyList<ScreenRect> Screens { get; }
+    public string Problem { get; } = "";
+    public bool HasProblem => Problem.Length > 0;
+    public string Summary { get; }
 
     [ObservableProperty] private string? _hotkey;
     partial void OnHotkeyChanged(string? value) => _owner.HotkeyChanged(this, value);

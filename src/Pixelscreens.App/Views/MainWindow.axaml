@@ -68,9 +68,11 @@
                         <Button Content="Apply" Command="{Binding ApplyCommand}" IsVisible="{Binding CanApply}" />
                         <Button Content="Delete" Command="{Binding DeleteCommand}" />
                       </StackPanel>
-                      <StackPanel VerticalAlignment="Center">
+                      <px:ProfilePreview DockPanel.Dock="Left" Screens="{Binding Screens}" IsUsable="{Binding IsUsable}" Margin="0,0,16,0" VerticalAlignment="Center" />
+                      <StackPanel VerticalAlignment="Center" Spacing="2">
                         <TextBlock Text="{Binding Name}" />
-                        <TextBlock Classes="dim" Text="{Binding Uuid}" />
+                        <TextBlock Classes="muted" Text="{Binding Summary}" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Classes="dim" Text="{Binding Problem}" Foreground="{StaticResource Px.Brush.Bad}" IsVisible="{Binding HasProblem}" TextWrapping="Wrap" />
                       </StackPanel>
                     </DockPanel>
                   </Border>
@@ -132,7 +134,7 @@
           <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top" Margin="16,0,0,0">
             <Button Content="Show all" Command="{Binding ShowAllCommand}" IsVisible="{Binding IsFocused}" />
             <Button Content="Rescan" Command="{Binding RefreshCommand}" IsEnabled="{Binding !Busy}" />
-            <Button Content="Apply layout" Command="{Binding SaveCommand}" IsEnabled="{Binding Dirty}" />
+            <Button Content="Apply now" Command="{Binding SaveCommand}" IsEnabled="{Binding Dirty}" ToolTip.Tip="Edits save on their own a moment after you stop. This forces it immediately." />
             <Button Classes="primary" Content="Enable" Command="{Binding StartCommand}" IsVisible="{Binding !IsRunning}" IsEnabled="{Binding !Busy}" />
             <Button Content="Disable" Command="{Binding StopCommand}" IsVisible="{Binding IsRunning}" IsEnabled="{Binding !Busy}" />
           </StackPanel>
@@ -196,7 +198,7 @@
                   <TextBlock Classes="muted" Text="{Binding OutsideText}" />
                   <TextBlock Classes="dim" TextWrapping="Wrap" Text="Size is the picture area. Bezels are the frame around it, so overall = size + bezels." />
                 </StackPanel>
-                <TextBlock Classes="dim" TextWrapping="Wrap" Text="Changes preview on the canvas. Press Apply layout to save them and update the cursor engine." />
+                <TextBlock Classes="dim" TextWrapping="Wrap" Text="Changes save on their own a moment after you stop editing, to this monitor's saved profile, and go live if the engine is on." />
               </StackPanel>
               </Panel>
             </StackPanel>

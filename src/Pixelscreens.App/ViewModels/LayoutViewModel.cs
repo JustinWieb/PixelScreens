@@ -143,6 +143,21 @@ public sealed partial class LayoutViewModel : ObservableObject
         m.DepthProjection.X = box.XMm;
         m.DepthProjection.Y = box.YMm;
         Dirty = true;
+        ScheduleAutosave();
+    }
+
+    private CancellationTokenSource? _autosave;
+
+    /// <summary>Save 800 ms after the last edit, so typing a number doesn't hammer the registry.</summary>
+    private void ScheduleAutosave()
+    {
+        _autosave?.Cancel();
+        var cts = _autosave = new CancellationTokenSource();
+        _ = Task.Run(async () =>
+        {
+            try { await Task.Delay(800, cts.Token); } catch (OperationCanceledException) { return; }
+            await Dispatcher.UIThread.InvokeAsync(async () => { if (Dirty) await SaveAsync(); });
+        });
     }
 
     private void PushSize(MonitorBox box)
@@ -161,6 +176,7 @@ public sealed partial class LayoutViewModel : ObservableObject
             phys.LeftBorder = box.BezelLeftMm;
         }
         Dirty = true;
+        ScheduleAutosave();
     }
 
     /// <summary>Called by the canvas when a drag ends: persist and, if the hook is live, push the new zones.</summary>
@@ -182,7 +198,7 @@ public sealed partial class LayoutViewModel : ObservableObject
         {
             var ok = await Task.Run(() => _engine.Save());
             Dirty = !ok;
-            Status = ok ? "layout applied" : "layout save failed";
+            Status = ok ? $"saved {DateTime.Now:HH:mm:ss}" + (IsRunning ? " · live" : "") : "layout save failed";
             if (ok && IsRunning) await _engine.PushLayoutAsync();
         }
         catch (Exception ex)
