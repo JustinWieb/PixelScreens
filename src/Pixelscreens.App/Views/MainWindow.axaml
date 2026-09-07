@@ -130,6 +130,7 @@
       <DockPanel DataContext="{Binding Layout}" x:DataType="vm:LayoutViewModel">
         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,16">
           <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top" Margin="16,0,0,0">
+            <Button Content="Show all" Command="{Binding ShowAllCommand}" IsVisible="{Binding IsFocused}" />
             <Button Content="Rescan" Command="{Binding RefreshCommand}" IsEnabled="{Binding !Busy}" />
             <Button Content="Apply layout" Command="{Binding SaveCommand}" IsEnabled="{Binding Dirty}" />
             <Button Classes="primary" Content="Enable" Command="{Binding StartCommand}" IsVisible="{Binding !IsRunning}" IsEnabled="{Binding !Busy}" />
@@ -142,7 +143,7 @@
         </DockPanel>
         <Grid ColumnDefinitions="*,16,260">
           <Border Classes="panel" Padding="0" ClipToBounds="True">
-            <px:LayoutCanvas x:Name="LayoutCanvas" Monitors="{Binding Monitors}"
+            <px:LayoutCanvas x:Name="LayoutCanvas" Monitors="{Binding Monitors}" Focused="{Binding Focused}"
                              PixelFont="{StaticResource Px.Font.Pixel}"
                              BoxBrush="{StaticResource Px.Brush.PanelRaised}"
                              BorderBrush="{StaticResource Px.Brush.BorderStrong}"
@@ -152,8 +153,14 @@
           </Border>
           <Border Grid.Column="2" Classes="panel">
             <StackPanel Spacing="12">
-              <TextBlock Classes="pixel" Text="MONITOR" />
-              <TextBlock Classes="muted" Text="Click a screen on the left to edit it." IsVisible="{Binding !HasSelection}" TextWrapping="Wrap" />
+              <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="4">
+                  <RadioButton Classes="unit" GroupName="units" Content="in" IsChecked="{Binding UseInches}" />
+                  <RadioButton Classes="unit" GroupName="units" Content="mm" IsChecked="{Binding !UseInches}" />
+                </StackPanel>
+                <TextBlock Classes="pixel" Text="MONITOR" VerticalAlignment="Center" />
+              </DockPanel>
+              <TextBlock Classes="muted" Text="Click a screen to edit it. Double-click to open it alone. Drag corners to resize, drag edges to set bezels." IsVisible="{Binding !HasSelection}" TextWrapping="Wrap" />
               <Panel IsVisible="{Binding HasSelection}">
               <StackPanel Spacing="12" DataContext="{Binding Selected}" x:DataType="vm:MonitorBox">
                 <StackPanel>
@@ -165,23 +172,23 @@
                   <Grid ColumnDefinitions="*,8,*" RowDefinitions="Auto,4,Auto,8,Auto,4,Auto">
                     <TextBlock Classes="dim" Text="diagonal (in)" />
                     <NumericUpDown Grid.Row="2" Value="{Binding DiagonalInches}" Increment="0.5" Minimum="5" Maximum="120" FormatString="0.0" ShowButtonSpinner="False" />
-                    <TextBlock Grid.Column="2" Classes="dim" Text="width (mm)" />
-                    <NumericUpDown Grid.Row="2" Grid.Column="2" Value="{Binding WidthMm}" Increment="1" Minimum="50" Maximum="3000" FormatString="0" ShowButtonSpinner="False" />
-                    <TextBlock Grid.Row="4" Classes="dim" Text="height (mm)" />
-                    <NumericUpDown Grid.Row="6" Value="{Binding HeightMm}" Increment="1" Minimum="30" Maximum="3000" FormatString="0" ShowButtonSpinner="False" />
+                    <TextBlock Grid.Column="2" Classes="dim" Text="{Binding Unit, StringFormat='width ({0})'}" />
+                    <NumericUpDown Grid.Row="2" Grid.Column="2" Value="{Binding WidthU}" Increment="0.1" Minimum="1" Maximum="3000" FormatString="0.##" ShowButtonSpinner="False" />
+                    <TextBlock Grid.Row="4" Classes="dim" Text="{Binding Unit, StringFormat='height ({0})'}" />
+                    <NumericUpDown Grid.Row="6" Value="{Binding HeightU}" Increment="0.1" Minimum="1" Maximum="3000" FormatString="0.##" ShowButtonSpinner="False" />
                   </Grid>
                 </StackPanel>
                 <StackPanel Spacing="6">
-                  <TextBlock Classes="pixel" FontSize="7" Text="BEZEL (MM)" />
+                  <TextBlock Classes="pixel" FontSize="7" Text="{Binding Unit, StringFormat='BEZEL ({0})'}" />
                   <Grid ColumnDefinitions="*,8,*" RowDefinitions="Auto,4,Auto,8,Auto,4,Auto">
                     <TextBlock Classes="dim" Text="top" />
-                    <NumericUpDown Grid.Row="2" Value="{Binding BezelTopMm}" Increment="0.5" Minimum="0" Maximum="200" FormatString="0.0" ShowButtonSpinner="False" />
+                    <NumericUpDown Grid.Row="2" Value="{Binding BezelTopU}" Increment="0.05" Minimum="0" Maximum="200" FormatString="0.##" ShowButtonSpinner="False" />
                     <TextBlock Grid.Column="2" Classes="dim" Text="right" />
-                    <NumericUpDown Grid.Row="2" Grid.Column="2" Value="{Binding BezelRightMm}" Increment="0.5" Minimum="0" Maximum="200" FormatString="0.0" ShowButtonSpinner="False" />
+                    <NumericUpDown Grid.Row="2" Grid.Column="2" Value="{Binding BezelRightU}" Increment="0.05" Minimum="0" Maximum="200" FormatString="0.##" ShowButtonSpinner="False" />
                     <TextBlock Grid.Row="4" Classes="dim" Text="bottom" />
-                    <NumericUpDown Grid.Row="6" Value="{Binding BezelBottomMm}" Increment="0.5" Minimum="0" Maximum="200" FormatString="0.0" ShowButtonSpinner="False" />
+                    <NumericUpDown Grid.Row="6" Value="{Binding BezelBottomU}" Increment="0.05" Minimum="0" Maximum="200" FormatString="0.##" ShowButtonSpinner="False" />
                     <TextBlock Grid.Row="4" Grid.Column="2" Classes="dim" Text="left" />
-                    <NumericUpDown Grid.Row="6" Grid.Column="2" Value="{Binding BezelLeftMm}" Increment="0.5" Minimum="0" Maximum="200" FormatString="0.0" ShowButtonSpinner="False" />
+                    <NumericUpDown Grid.Row="6" Grid.Column="2" Value="{Binding BezelLeftU}" Increment="0.05" Minimum="0" Maximum="200" FormatString="0.##" ShowButtonSpinner="False" />
                   </Grid>
                 </StackPanel>
                 <TextBlock Classes="dim" TextWrapping="Wrap" Text="Changes preview on the canvas. Press Apply layout to save them and update the cursor engine." />

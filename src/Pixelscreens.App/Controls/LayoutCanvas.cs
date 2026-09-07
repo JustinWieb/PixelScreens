@@ -40,6 +40,15 @@ public sealed class LayoutCanvas : Control
     public static readonly StyledProperty<FontFamily?> PixelFontProperty =
         AvaloniaProperty.Register<LayoutCanvas, FontFamily?>(nameof(PixelFont));
 
+    /// <summary>When set, only this monitor is shown, large, for detailed editing.</summary>
+    public static readonly StyledProperty<MonitorBox?> FocusedProperty =
+        AvaloniaProperty.Register<LayoutCanvas, MonitorBox?>(nameof(Focused));
+
+    public MonitorBox? Focused { get => GetValue(FocusedProperty); set => SetValue(FocusedProperty, value); }
+
+    /// <summary>Raised on double-click of a monitor box.</summary>
+    public event EventHandler<MonitorBox>? MonitorOpened;
+
     public ObservableCollection<MonitorBox>? Monitors { get => GetValue(MonitorsProperty); set => SetValue(MonitorsProperty, value); }
     public IBrush? BoxBrush { get => GetValue(BoxBrushProperty); set => SetValue(BoxBrushProperty, value); }
     public IBrush? BorderBrush { get => GetValue(BorderBrushProperty); set => SetValue(BorderBrushProperty, value); }
@@ -60,6 +69,13 @@ public sealed class LayoutCanvas : Control
     private const double Padding = 32;
     private const double SnapMm = 5;
 
+    private const double HandleHalf = 5;
+    private enum Handle { None, NW, NE, SW, SE, N, E, S, W }
+    private Handle _handle = Handle.None;
+    private (double x, double y, double w, double h) _dragStartBox;
+    private DateTime _lastClick;
+    private MonitorBox? _lastClickBox;
+
     private double _scale = 0.2;      // canvas px per mm
     private Point _origin;            // canvas point for (0mm, 0mm)
     private MonitorBox? _drag;
@@ -68,7 +84,7 @@ public sealed class LayoutCanvas : Control
 
     static LayoutCanvas()
     {
-        AffectsRender<LayoutCanvas>(MonitorsProperty, BoxBrushProperty, BorderBrushProperty, AccentBrushProperty);
+        AffectsRender<LayoutCanvas>(MonitorsProperty, BoxBrushProperty, BorderBrushProperty, AccentBrushProperty, FocusedProperty);
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -101,11 +117,12 @@ public sealed class LayoutCanvas : Control
 
     private void Fit()
     {
-        var ms = Monitors;
-        if (ms is null || ms.Count == 0 || Bounds.Width <= 0 || Bounds.Height <= 0) return;
+        var all = Monitors;
+        if (all is null || all.Count == 0 || Bounds.Width <= 0 || Bounds.Height <= 0) return;
+        IEnumerable<MonitorBox> ms = Focused is not null && all.Contains(Focused) ? new[] { Focused } : all;
 
-        double minX = ms.Min(m => m.XMm), minY = ms.Min(m => m.YMm);
-        double maxX = ms.Max(m => m.XMm + m.WidthMm), maxY = ms.Max(m => m.YMm + m.HeightMm);
+        double minX = ms.Min(m => m.XMm - m.BezelLeftMm), minY = ms.Min(m => m.YMm - m.BezelTopMm);
+        double maxX = ms.Max(m => m.XMm + m.WidthMm + m.BezelRightMm), maxY = ms.Max(m => m.YMm + m.HeightMm + m.BezelBottomMm);
         var wMm = Math.Max(1, maxX - minX);
         var hMm = Math.Max(1, maxY - minY);
 
@@ -125,6 +142,28 @@ public sealed class LayoutCanvas : Control
         _origin.Y + m.YMm * _scale,
         m.WidthMm * _scale,
         m.HeightMm * _scale);
+
+    private IEnumerable<(Point pt, Handle h)> Handles(MonitorBox m, Rect r)
+    {
+        var bl = m.BezelLeftMm * _scale; var bt = m.BezelTopMm * _scale;
+        var br = m.BezelRightMm * _scale; var bb = m.BezelBottomMm * _scale;
+        yield return (r.TopLeft, Handle.NW);
+        yield return (r.TopRight, Handle.NE);
+        yield return (r.BottomLeft, Handle.SW);
+        yield return (r.BottomRight, Handle.SE);
+        yield return (new Point(r.Center.X, r.Y - bt), Handle.N);
+        yield return (new Point(r.Right + br, r.Center.Y), Handle.E);
+        yield return (new Point(r.Center.X, r.Bottom + bb), Handle.S);
+        yield return (new Point(r.X - bl, r.Center.Y), Handle.W);
+    }
+
+    private Handle HitHandle(MonitorBox m, Point p)
+    {
+        var r = ToCanvas(m);
+        foreach (var (pt, h) in Handles(m, r))
+            if (Math.Abs(pt.X - p.X) <= HandleHalf + 2 && Math.Abs(pt.Y - p.Y) <= HandleHalf + 2) return h;
+        return Handle.None;
+    }
 
     public override void Render(DrawingContext ctx)
     {
@@ -153,6 +192,7 @@ public sealed class LayoutCanvas : Control
 
         foreach (var m in ms)
         {
+            if (Focused is not null && m != Focused) continue;
             var r = ToCanvas(m);
             r = new Rect(Math.Round(r.X) + 0.5, Math.Round(r.Y) + 0.5, Math.Round(r.Width), Math.Round(r.Height));
             // Bezel frame (outer edge of the physical monitor), drawn dimmer behind the panel.
@@ -187,9 +227,19 @@ public sealed class LayoutCanvas : Control
                 FlowDirection.LeftToRight, new Typeface(FontFamily.Default), 11, MutedBrush) { MaxTextWidth = r.Width - 16 };
             ctx.DrawText(sub, new Point(r.X + 8, r.Y + 8 + title.Height + 6));
 
-            var size = new FormattedText($"{m.WidthMm:0} x {m.HeightMm:0} mm", System.Globalization.CultureInfo.InvariantCulture,
+            var size = new FormattedText(m.SizeText, System.Globalization.CultureInfo.InvariantCulture,
                 FlowDirection.LeftToRight, new Typeface(FontFamily.Default), 11, MutedBrush);
             ctx.DrawText(size, new Point(r.X + 8, r.Bottom - size.Height - 8));
+        }
+
+        // Handles on the selected monitor: corners resize the panel, edges set that side's bezel.
+        var sel = ms.FirstOrDefault(m => m.IsSelected);
+        if (sel is not null && (Focused is null || sel == Focused))
+        {
+            var r = ToCanvas(sel);
+            var fill = AccentBrush ?? Brushes.White;
+            foreach (var (pt, _) in Handles(sel, r))
+                ctx.FillRectangle(fill, new Rect(pt.X - HandleHalf, pt.Y - HandleHalf, HandleHalf * 2, HandleHalf * 2));
         }
     }
 
@@ -200,11 +250,40 @@ public sealed class LayoutCanvas : Control
         if (ms is null) return;
         var p = e.GetPosition(this);
         var hit = false;
+
+        // Resize / bezel handles on the selected monitor take priority.
+        var sel = ms.FirstOrDefault(m => m.IsSelected);
+        if (sel is not null && (Focused is null || sel == Focused))
+        {
+            var h = HitHandle(sel, p);
+            if (h != Handle.None)
+            {
+                _drag = sel;
+                _handle = h;
+                _moved = false;
+                _dragStartPointer = p;
+                _dragStartBox = (sel.XMm, sel.YMm, sel.WidthMm, sel.HeightMm);
+                e.Pointer.Capture(this);
+                return;
+            }
+        }
+
         // Topmost hit wins: iterate in reverse so later items (drawn on top) take precedence.
         for (var i = ms.Count - 1; i >= 0; i--)
         {
+            if (Focused is not null && ms[i] != Focused) continue;
             if (!ToCanvas(ms[i]).Contains(p)) continue;
+            var now = DateTime.UtcNow;
+            if (_lastClickBox == ms[i] && (now - _lastClick).TotalMilliseconds < 400)
+            {
+                _lastClick = DateTime.MinValue;
+                MonitorOpened?.Invoke(this, ms[i]);
+                return;
+            }
+            _lastClick = now;
+            _lastClickBox = ms[i];
             _drag = ms[i];
+            _handle = Handle.None;
             _moved = false;
             _dragStartPointer = p;
             _dragStartMm = (_drag.XMm, _drag.YMm);
@@ -220,14 +299,52 @@ public sealed class LayoutCanvas : Control
     protected override void OnPointerMoved(PointerEventArgs e)
     {
         base.OnPointerMoved(e);
-        if (_drag is null) return;
+        if (_drag is null)
+        {
+            var selHover = Monitors?.FirstOrDefault(m => m.IsSelected);
+            var h = selHover is null ? Handle.None : HitHandle(selHover, e.GetPosition(this));
+            Cursor = h switch
+            {
+                Handle.NW or Handle.SE => new Cursor(StandardCursorType.TopLeftCorner),
+                Handle.NE or Handle.SW => new Cursor(StandardCursorType.TopRightCorner),
+                Handle.N or Handle.S => new Cursor(StandardCursorType.SizeNorthSouth),
+                Handle.E or Handle.W => new Cursor(StandardCursorType.SizeWestEast),
+                _ => Cursor.Default,
+            };
+            return;
+        }
         var p = e.GetPosition(this);
         var dxMm = (p.X - _dragStartPointer.X) / _scale;
         var dyMm = (p.Y - _dragStartPointer.Y) / _scale;
         if (Math.Abs(p.X - _dragStartPointer.X) + Math.Abs(p.Y - _dragStartPointer.Y) > 3) _moved = true;
         if (!_moved) return;
+
+        if (_handle != Handle.None)
+        {
+            var (x0, y0, w0, h0) = _dragStartBox;
+            var pmm = new Point((p.X - _origin.X) / _scale, (p.Y - _origin.Y) / _scale); // pointer in mm
+            switch (_handle)
+            {
+                case Handle.SE: _drag.ResizeToWidth(pmm.X - x0); break;
+                case Handle.NE: _drag.ResizeToWidth(pmm.X - x0); _drag.YMm = y0 + h0 - _drag.HeightMm; break;
+                case Handle.SW: _drag.ResizeToWidth(x0 + w0 - pmm.X); _drag.XMm = x0 + w0 - _drag.WidthMm; break;
+                case Handle.NW: _drag.ResizeToWidth(x0 + w0 - pmm.X); _drag.XMm = x0 + w0 - _drag.WidthMm; _drag.YMm = y0 + h0 - _drag.HeightMm; break;
+                case Handle.N: _drag.BezelTopMm = Math.Clamp(Math.Round(y0 - pmm.Y, 1), 0, 150); break;
+                case Handle.S: _drag.BezelBottomMm = Math.Clamp(Math.Round(pmm.Y - (y0 + h0), 1), 0, 150); break;
+                case Handle.W: _drag.BezelLeftMm = Math.Clamp(Math.Round(x0 - pmm.X, 1), 0, 150); break;
+                case Handle.E: _drag.BezelRightMm = Math.Clamp(Math.Round(pmm.X - (x0 + w0), 1), 0, 150); break;
+            }
+            return;
+        }
+
         _drag.XMm = Math.Round((_dragStartMm.x + dxMm) / SnapMm) * SnapMm;
         _drag.YMm = Math.Round((_dragStartMm.y + dyMm) / SnapMm) * SnapMm;
+    }
+
+    protected override void OnPointerExited(PointerEventArgs e)
+    {
+        base.OnPointerExited(e);
+        if (_drag is null) Cursor = Cursor.Default;
     }
 
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
@@ -236,10 +353,12 @@ public sealed class LayoutCanvas : Control
         if (_drag is null) return;
         e.Pointer.Capture(null);
         var clicked = _drag;
+        var wasHandle = _handle != Handle.None;
         _drag = null;
+        _handle = Handle.None;
         Cursor = Cursor.Default;
         InvalidateVisual();
-        MonitorClicked?.Invoke(this, clicked);
+        if (!wasHandle) MonitorClicked?.Invoke(this, clicked);
         if (_moved) LayoutChanged?.Invoke(this, EventArgs.Empty);
     }
 }

@@ -18,7 +18,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         Profiles = new ProfilesViewModel(new DisplayProfileService(), Settings, RebindHotkeys);
         Audio = new AudioViewModel(new AudioProfileService(), Settings, RebindHotkeys);
-        Layout = new LayoutViewModel(_cursorEngine);
+        Layout = new LayoutViewModel(_cursorEngine, Settings);
         Options = new SettingsViewModel(Settings, () => _cursorEngine.ApplyOptionsAsync(Settings), RebindHotkeys);
 
         Profiles.PropertyChanged += (_, e) => { if (e.PropertyName is nameof(ProfilesViewModel.Status) or nameof(ProfilesViewModel.EngineOk)) RaiseFooter(); };

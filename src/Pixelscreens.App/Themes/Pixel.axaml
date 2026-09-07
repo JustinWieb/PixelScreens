@@ -123,6 +123,24 @@
     <Setter Property="Foreground" Value="{StaticResource Px.Brush.Text}" />
   </Style>
 
+  <!-- Tiny unit toggle (in / mm) -->
+  <Style Selector="RadioButton.unit">
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Name="PART_Root" Background="Transparent" BorderBrush="{StaticResource Px.Brush.BorderStrong}" BorderThickness="1" Padding="8,2">
+          <TextBlock Classes="pixel" FontSize="7" Text="{TemplateBinding Content}" />
+        </Border>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="RadioButton.unit:checked /template/ Border#PART_Root">
+    <Setter Property="Background" Value="{StaticResource Px.Brush.Accent}" />
+    <Setter Property="BorderBrush" Value="{StaticResource Px.Brush.Accent}" />
+  </Style>
+  <Style Selector="RadioButton.unit:checked /template/ TextBlock">
+    <Setter Property="Foreground" Value="#0A0A0A" />
+  </Style>
+
   <!-- Buttons: square, hairline, accent fill for primary. -->
   <Style Selector="Button">
     <Setter Property="Background" Value="{StaticResource Px.Brush.PanelRaised}" />

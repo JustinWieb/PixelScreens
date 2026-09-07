@@ -13,6 +13,7 @@ public sealed class AppSettings
     public bool StartMinimized { get; set; }
     public bool CloseToTray { get; set; } = true;
     public bool EnableCursorOnStart { get; set; } = true;
+    public bool UnitsInches { get; set; } = true;
 
     // Cursor engine (mirrors LittleBigMouse's ILayoutOptions, the parts a user cares about)
     public string Algorithm { get; set; } = "Cross";

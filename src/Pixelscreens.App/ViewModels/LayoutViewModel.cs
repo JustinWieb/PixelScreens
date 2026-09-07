@@ -12,9 +12,13 @@ public sealed partial class LayoutViewModel : ObservableObject
     private readonly CursorEngineService _engine;
     private readonly Dictionary<string, PhysicalMonitor> _byId = new();
 
-    public LayoutViewModel(CursorEngineService engine)
+    private readonly AppSettings _settings;
+
+    public LayoutViewModel(CursorEngineService engine, AppSettings settings)
     {
         _engine = engine;
+        _settings = settings;
+        _useInches = settings.UnitsInches;
         _engine.DaemonMessage += (_, msg) => Dispatcher.UIThread.Post(() =>
         {
             LastDaemonMessage = Trim(msg);
@@ -42,6 +46,29 @@ public sealed partial class LayoutViewModel : ObservableObject
     [ObservableProperty] private bool _dirty;
     [ObservableProperty] private string _lastDaemonMessage = "";
     [ObservableProperty] private MonitorBox? _selected;
+    [ObservableProperty] private MonitorBox? _focused;
+    [ObservableProperty] private bool _useInches = true;
+
+    public bool IsFocused => Focused is not null;
+    public string UnitLabel => UseInches ? "in" : "mm";
+
+    partial void OnFocusedChanged(MonitorBox? value)
+    {
+        OnPropertyChanged(nameof(IsFocused));
+        if (value is not null) Select(value);
+    }
+
+    partial void OnUseInchesChanged(bool value)
+    {
+        foreach (var m in Monitors) m.UseInches = value;
+        OnPropertyChanged(nameof(UnitLabel));
+        _settings.UnitsInches = value;
+        _settings.Save();
+    }
+
+    [RelayCommand] private void OpenSelected() { if (Selected is not null) Focused = Selected; }
+    [RelayCommand] private void ShowAll() => Focused = null;
+    public void Open(MonitorBox box) => Focused = box;
 
     public bool HasSelection => Selected is not null;
     partial void OnSelectedChanged(MonitorBox? value) => OnPropertyChanged(nameof(HasSelection));
@@ -61,6 +88,7 @@ public sealed partial class LayoutViewModel : ObservableObject
             var layout = await Task.Run(() => _engine.Reload());
             Monitors.Clear();
             _byId.Clear();
+            Focused = null;
             foreach (var m in layout.PhysicalMonitors)
             {
                 var src = m.ActiveSource?.Source;
@@ -82,6 +110,7 @@ public sealed partial class LayoutViewModel : ObservableObject
                     BezelBottomMm = Math.Round(m.PhysicalRotated.BottomBorder, 1),
                     BezelLeftMm = Math.Round(m.PhysicalRotated.LeftBorder, 1),
                 };
+                box.UseInches = UseInches;
                 box.SeedDiagonal();
                 box.PropertyChanged += (_, e) =>
                 {

@@ -80,6 +80,53 @@ public sealed partial class MonitorBox : ObservableObject
         Edited?.Invoke(this, EventArgs.Empty);
     }
 
+    // ---- Unit-aware views of the mm fields (inches when UseInches, else mm) ----
+    private bool _useInches = true;
+    public bool UseInches
+    {
+        get => _useInches;
+        set
+        {
+            if (SetProperty(ref _useInches, value)) RaiseUnitViews();
+        }
+    }
+    public string Unit => UseInches ? "in" : "mm";
+    private double ToUnit(double mm) => UseInches ? Math.Round(mm / MmPerInch, 2) : Math.Round(mm, 1);
+    private double FromUnit(double v) => UseInches ? v * MmPerInch : v;
+
+    public double WidthU { get => ToUnit(WidthMm); set => WidthMm = FromUnit(value); }
+    public double HeightU { get => ToUnit(HeightMm); set => HeightMm = FromUnit(value); }
+    public double BezelTopU { get => ToUnit(BezelTopMm); set => BezelTopMm = FromUnit(value); }
+    public double BezelRightU { get => ToUnit(BezelRightMm); set => BezelRightMm = FromUnit(value); }
+    public double BezelBottomU { get => ToUnit(BezelBottomMm); set => BezelBottomMm = FromUnit(value); }
+    public double BezelLeftU { get => ToUnit(BezelLeftMm); set => BezelLeftMm = FromUnit(value); }
+    public string SizeText => UseInches ? $"{WidthMm / MmPerInch:0.0} x {HeightMm / MmPerInch:0.0} in" : $"{WidthMm:0} x {HeightMm:0} mm";
+
+    private void RaiseUnitViews()
+    {
+        foreach (var n in new[] { nameof(Unit), nameof(WidthU), nameof(HeightU), nameof(BezelTopU), nameof(BezelRightU), nameof(BezelBottomU), nameof(BezelLeftU), nameof(SizeText) })
+            OnPropertyChanged(n);
+    }
+
+    partial void OnWidthMmChanged(double oldValue, double newValue) { OnPropertyChanged(nameof(WidthU)); OnPropertyChanged(nameof(SizeText)); }
+    partial void OnHeightMmChanged(double oldValue, double newValue) { OnPropertyChanged(nameof(HeightU)); OnPropertyChanged(nameof(SizeText)); }
+    partial void OnBezelTopMmChanged(double oldValue, double newValue) => OnPropertyChanged(nameof(BezelTopU));
+    partial void OnBezelRightMmChanged(double oldValue, double newValue) => OnPropertyChanged(nameof(BezelRightU));
+    partial void OnBezelBottomMmChanged(double oldValue, double newValue) => OnPropertyChanged(nameof(BezelBottomU));
+    partial void OnBezelLeftMmChanged(double oldValue, double newValue) => OnPropertyChanged(nameof(BezelLeftU));
+
+    /// <summary>Scale the panel to a new width, keeping the pixel aspect ratio. Used by corner drags.</summary>
+    public void ResizeToWidth(double widthMm)
+    {
+        widthMm = Math.Clamp(widthMm, 50, 3000);
+        var aspect = PixelWidth > 0 && PixelHeight > 0 ? (double)PixelHeight / PixelWidth : HeightMm / Math.Max(1, WidthMm);
+        _syncing = true;
+        WidthMm = Math.Round(widthMm, 1);
+        HeightMm = Math.Round(widthMm * aspect, 1);
+        _syncing = false;
+        FromPanel();
+    }
+
     public void SeedDiagonal()
     {
         _syncing = true;
