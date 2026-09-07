@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+    <Platforms>AnyCPU;x64;x86</Platforms>
+    <Version>2.0.0.2-dev0393</Version>
+    <RootNamespace>HLab.DependencyInjection.Annotations</RootNamespace>
+    <Configurations>Debug;Release;ReleaseDebug;DebugRelease</Configurations>
+  </PropertyGroup>
+
+</Project>

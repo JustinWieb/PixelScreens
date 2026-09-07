@@ -1,0 +1,1 @@
+﻿namespace HLab.Notify.PropertyChanged;
