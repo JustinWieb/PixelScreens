@@ -1,7 +1,17 @@
-# Pixelscreens (working name)
+# PixelScreens
 
-Display templates plus DPI-correct cursor travel for multi-monitor Windows setups,
-in a dark, minimal, pixel-accented UI.
+Display profiles, audio profiles, and DPI-correct cursor travel for multi-monitor Windows
+setups, in one black-and-white, pixel-accented app. Open source under GPL-3.0.
+
+Built on the engines of [DisplayMagician](https://github.com/terrymacdonald/DisplayMagician)
+and [LittleBigMouse](https://github.com/mgth/LittleBigMouse), with a new Avalonia UI.
+
+## What it does
+
+- **Profiles**: save your current monitor arrangement (resolution, position, refresh, HDR) and apply it later with one click, a hotkey, or from the tray. Thumbnails show each profile's layout.
+- **Audio**: save default speaker, mic, and volumes as a profile and switch the same way.
+- **Layout**: lay screens out by real physical size and position, in inches or mm, with bezels. Drag to move, drag corners to resize, drag edges for bezels, snap to neighbours. With the cursor engine on, the mouse crosses between screens at the matching physical spot instead of jumping.
+- **Settings**: start with Windows, tray behaviour, system-wide hotkeys, cursor engine options, and a one-click Windows dark theme that matches the app.
 
 Two mature engines, one new front end:
 
