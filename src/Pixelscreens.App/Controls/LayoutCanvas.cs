@@ -20,22 +20,22 @@ public sealed class LayoutCanvas : Control
         AvaloniaProperty.Register<LayoutCanvas, ObservableCollection<MonitorBox>?>(nameof(Monitors));
 
     public static readonly StyledProperty<IBrush?> BoxBrushProperty =
-        AvaloniaProperty.Register<LayoutCanvas, IBrush?>(nameof(BoxBrush), new SolidColorBrush(Color.Parse("#1B1B22")));
+        AvaloniaProperty.Register<LayoutCanvas, IBrush?>(nameof(BoxBrush), new SolidColorBrush(Color.Parse("#181818")));
 
     public static readonly StyledProperty<IBrush?> BorderBrushProperty =
-        AvaloniaProperty.Register<LayoutCanvas, IBrush?>(nameof(BorderBrush), new SolidColorBrush(Color.Parse("#34343F")));
+        AvaloniaProperty.Register<LayoutCanvas, IBrush?>(nameof(BorderBrush), new SolidColorBrush(Color.Parse("#303030")));
 
     public static readonly StyledProperty<IBrush?> AccentBrushProperty =
-        AvaloniaProperty.Register<LayoutCanvas, IBrush?>(nameof(AccentBrush), new SolidColorBrush(Color.Parse("#7C7CFF")));
+        AvaloniaProperty.Register<LayoutCanvas, IBrush?>(nameof(AccentBrush), new SolidColorBrush(Color.Parse("#FFFFFF")));
 
     public static readonly StyledProperty<IBrush?> GridBrushProperty =
-        AvaloniaProperty.Register<LayoutCanvas, IBrush?>(nameof(GridBrush), new SolidColorBrush(Color.Parse("#1A1A21")));
+        AvaloniaProperty.Register<LayoutCanvas, IBrush?>(nameof(GridBrush), new SolidColorBrush(Color.Parse("#161616")));
 
     public static readonly StyledProperty<IBrush?> TextBrushProperty =
-        AvaloniaProperty.Register<LayoutCanvas, IBrush?>(nameof(TextBrush), new SolidColorBrush(Color.Parse("#E8E8EE")));
+        AvaloniaProperty.Register<LayoutCanvas, IBrush?>(nameof(TextBrush), new SolidColorBrush(Color.Parse("#F2F2F2")));
 
     public static readonly StyledProperty<IBrush?> MutedBrushProperty =
-        AvaloniaProperty.Register<LayoutCanvas, IBrush?>(nameof(MutedBrush), new SolidColorBrush(Color.Parse("#8B8B98")));
+        AvaloniaProperty.Register<LayoutCanvas, IBrush?>(nameof(MutedBrush), new SolidColorBrush(Color.Parse("#8C8C8C")));
 
     public static readonly StyledProperty<FontFamily?> PixelFontProperty =
         AvaloniaProperty.Register<LayoutCanvas, FontFamily?>(nameof(PixelFont));

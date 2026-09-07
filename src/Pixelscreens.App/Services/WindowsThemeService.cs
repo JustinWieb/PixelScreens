@@ -14,8 +14,8 @@ public static class WindowsThemeService
     private const string Dwm = @"Software\Microsoft\Windows\DWM";
     private const string Accent = @"Software\Microsoft\Windows\CurrentVersion\Explorer\Accent";
 
-    // Windows stores accent colours as ABGR. E8E8EE (Pixelscreens text white) -> 0xFFEEE8E8.
-    private const uint AccentAbgr = 0xFFEEE8E8;
+    // Windows stores accent colours as ABGR. F2F2F2 (Pixelscreens text white) -> 0xFFF2F2F2.
+    private const uint AccentAbgr = 0xFFF2F2F2;
 
     public static void ApplyMonochromeDark()
     {

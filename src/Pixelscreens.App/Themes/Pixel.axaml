@@ -9,18 +9,18 @@
 
   <Styles.Resources>
     <ResourceDictionary>
-      <Color x:Key="Px.Bg">#0E0E12</Color>
-      <Color x:Key="Px.Panel">#15151B</Color>
-      <Color x:Key="Px.PanelRaised">#1B1B22</Color>
-      <Color x:Key="Px.Border">#26262F</Color>
-      <Color x:Key="Px.BorderStrong">#34343F</Color>
-      <Color x:Key="Px.Text">#E8E8EE</Color>
-      <Color x:Key="Px.TextMuted">#8B8B98</Color>
-      <Color x:Key="Px.TextDim">#5B5B68</Color>
+      <Color x:Key="Px.Bg">#0A0A0A</Color>
+      <Color x:Key="Px.Panel">#111111</Color>
+      <Color x:Key="Px.PanelRaised">#181818</Color>
+      <Color x:Key="Px.Border">#242424</Color>
+      <Color x:Key="Px.BorderStrong">#303030</Color>
+      <Color x:Key="Px.Text">#F2F2F2</Color>
+      <Color x:Key="Px.TextMuted">#8C8C8C</Color>
+      <Color x:Key="Px.TextDim">#5A5A5A</Color>
       <Color x:Key="Px.Accent">#FFFFFF</Color>
-      <Color x:Key="Px.AccentSoft">#26262B</Color>
+      <Color x:Key="Px.AccentSoft">#222222</Color>
       <Color x:Key="Px.Good">#FFFFFF</Color>
-      <Color x:Key="Px.Warn">#B0B0B8</Color>
+      <Color x:Key="Px.Warn">#A6A6A6</Color>
       <Color x:Key="Px.Bad">#FF5C5C</Color>
 
       <SolidColorBrush x:Key="Px.Brush.Bg" Color="{StaticResource Px.Bg}" />
@@ -126,10 +126,10 @@
   <Style Selector="Button.primary">
     <Setter Property="Background" Value="{StaticResource Px.Brush.Accent}" />
     <Setter Property="BorderBrush" Value="{StaticResource Px.Brush.Accent}" />
-    <Setter Property="Foreground" Value="#0E0E12" />
+    <Setter Property="Foreground" Value="#0A0A0A" />
   </Style>
   <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
-    <Setter Property="Background" Value="#D8D8DE" />
+    <Setter Property="Background" Value="#D9D9D9" />
   </Style>
 
   <!-- Status chip -->
