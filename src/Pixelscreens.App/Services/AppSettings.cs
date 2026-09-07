@@ -10,7 +10,7 @@ public sealed class AppSettings
     public static string FilePath => Path.Combine(Dir, "settings.json");
 
     // Startup and window
-    public bool StartMinimized { get; set; }
+    public bool StartMinimized { get; set; } = true;
     public bool CloseToTray { get; set; } = true;
     public bool EnableCursorOnStart { get; set; } = true;
     public bool UnitsInches { get; set; } = true;

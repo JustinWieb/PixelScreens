@@ -100,20 +100,30 @@ public sealed partial class MonitorBox : ObservableObject
     public double BezelRightU { get => ToUnit(BezelRightMm); set => BezelRightMm = FromUnit(value); }
     public double BezelBottomU { get => ToUnit(BezelBottomMm); set => BezelBottomMm = FromUnit(value); }
     public double BezelLeftU { get => ToUnit(BezelLeftMm); set => BezelLeftMm = FromUnit(value); }
+    public string OutsideText
+    {
+        get
+        {
+            var w = WidthMm + BezelLeftMm + BezelRightMm;
+            var h = HeightMm + BezelTopMm + BezelBottomMm;
+            return UseInches ? $"{w / MmPerInch:0.00} x {h / MmPerInch:0.00} in with bezels" : $"{w:0} x {h:0} mm with bezels";
+        }
+    }
+
     public string SizeText => UseInches ? $"{WidthMm / MmPerInch:0.0} x {HeightMm / MmPerInch:0.0} in" : $"{WidthMm:0} x {HeightMm:0} mm";
 
     private void RaiseUnitViews()
     {
-        foreach (var n in new[] { nameof(Unit), nameof(WidthU), nameof(HeightU), nameof(BezelTopU), nameof(BezelRightU), nameof(BezelBottomU), nameof(BezelLeftU), nameof(SizeText) })
+        foreach (var n in new[] { nameof(Unit), nameof(WidthU), nameof(HeightU), nameof(BezelTopU), nameof(BezelRightU), nameof(BezelBottomU), nameof(BezelLeftU), nameof(SizeText), nameof(OutsideText) })
             OnPropertyChanged(n);
     }
 
-    partial void OnWidthMmChanged(double oldValue, double newValue) { OnPropertyChanged(nameof(WidthU)); OnPropertyChanged(nameof(SizeText)); }
-    partial void OnHeightMmChanged(double oldValue, double newValue) { OnPropertyChanged(nameof(HeightU)); OnPropertyChanged(nameof(SizeText)); }
-    partial void OnBezelTopMmChanged(double oldValue, double newValue) => OnPropertyChanged(nameof(BezelTopU));
-    partial void OnBezelRightMmChanged(double oldValue, double newValue) => OnPropertyChanged(nameof(BezelRightU));
-    partial void OnBezelBottomMmChanged(double oldValue, double newValue) => OnPropertyChanged(nameof(BezelBottomU));
-    partial void OnBezelLeftMmChanged(double oldValue, double newValue) => OnPropertyChanged(nameof(BezelLeftU));
+    partial void OnWidthMmChanged(double oldValue, double newValue) { OnPropertyChanged(nameof(WidthU)); OnPropertyChanged(nameof(SizeText)); OnPropertyChanged(nameof(OutsideText)); }
+    partial void OnHeightMmChanged(double oldValue, double newValue) { OnPropertyChanged(nameof(HeightU)); OnPropertyChanged(nameof(SizeText)); OnPropertyChanged(nameof(OutsideText)); }
+    partial void OnBezelTopMmChanged(double oldValue, double newValue) { OnPropertyChanged(nameof(BezelTopU)); OnPropertyChanged(nameof(OutsideText)); }
+    partial void OnBezelRightMmChanged(double oldValue, double newValue) { OnPropertyChanged(nameof(BezelRightU)); OnPropertyChanged(nameof(OutsideText)); }
+    partial void OnBezelBottomMmChanged(double oldValue, double newValue) { OnPropertyChanged(nameof(BezelBottomU)); OnPropertyChanged(nameof(OutsideText)); }
+    partial void OnBezelLeftMmChanged(double oldValue, double newValue) { OnPropertyChanged(nameof(BezelLeftU)); OnPropertyChanged(nameof(OutsideText)); }
 
     /// <summary>Scale the panel to a new width, keeping the pixel aspect ratio. Used by corner drags.</summary>
     public void ResizeToWidth(double widthMm)

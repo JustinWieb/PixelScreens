@@ -191,6 +191,11 @@
                     <NumericUpDown Grid.Row="6" Grid.Column="2" Value="{Binding BezelLeftU}" Increment="0.05" Minimum="0" Maximum="200" FormatString="0.##" ShowButtonSpinner="False" />
                   </Grid>
                 </StackPanel>
+                <StackPanel Spacing="4">
+                  <TextBlock Classes="pixel" FontSize="7" Text="OVERALL" />
+                  <TextBlock Classes="muted" Text="{Binding OutsideText}" />
+                  <TextBlock Classes="dim" TextWrapping="Wrap" Text="Size is the picture area. Bezels are the frame around it, so overall = size + bezels." />
+                </StackPanel>
                 <TextBlock Classes="dim" TextWrapping="Wrap" Text="Changes preview on the canvas. Press Apply layout to save them and update the cursor engine." />
               </StackPanel>
               </Panel>
@@ -213,7 +218,7 @@
           <StackPanel Spacing="10">
             <TextBlock Classes="pixel" Text="STARTUP" />
             <CheckBox Content="Start with Windows (signed in, no prompt)" IsChecked="{Binding StartWithWindows}" />
-            <CheckBox Content="Start minimised to the tray" IsChecked="{Binding StartMinimized}" />
+            <CheckBox Content="When started with Windows, stay in the tray (opening it yourself always shows the window)" IsChecked="{Binding StartMinimized}" />
             <CheckBox Content="Close button hides to the tray (Exit is in the tray menu)" IsChecked="{Binding CloseToTray}" />
             <CheckBox Content="Enable the cursor engine when PixelScreens starts" IsChecked="{Binding EnableCursorOnStart}" />
           </StackPanel>

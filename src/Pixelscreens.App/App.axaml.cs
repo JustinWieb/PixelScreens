@@ -29,7 +29,8 @@ public partial class App : Application
             if (args.Contains("--tab=layout")) vm.SelectedTab = 2;
             if (args.Contains("--tab=settings")) vm.SelectedTab = 3;
 
-            var startHidden = (args.Contains("--minimized") || vm.Settings.StartMinimized) && !args.Any(a => a.StartsWith("--tab="));
+            // Hidden only when Windows launched us at sign-in (the startup task passes --minimized) and the user wants that.
+            var startHidden = args.Contains("--minimized") && vm.Settings.StartMinimized && !args.Any(a => a.StartsWith("--tab="));
 
             vm.ShowRequested += ShowWindow;
 
