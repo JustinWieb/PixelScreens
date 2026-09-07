@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+        <TargetFrameworks>net5.0;net6.0</TargetFrameworks>
+        <LangVersion>default</LangVersion>
+        <Platforms>AnyCPU;x64</Platforms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" Version="0.13.2" />
+  </ItemGroup>
+
+</Project>
