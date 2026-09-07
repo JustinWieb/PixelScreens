@@ -56,6 +56,59 @@ public static class WindowsThemeService
         return (dark, prev);
     }
 
+    // ---- Taskbar and search tweaks (all HKCU, most apply live; some need Explorer restarted) ----
+    private const string Advanced = @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced";
+    private const string SearchSettings = @"Software\Microsoft\Windows\CurrentVersion\SearchSettings";
+    private const string Search = @"Software\Microsoft\Windows\CurrentVersion\Search";
+
+    public sealed record DesktopState(bool SearchHighlights, int SearchBoxMode, bool Widgets, bool TaskView, bool Chat, bool Copilot, bool CenterTaskbar, bool AccentOnTaskbar);
+
+    public static DesktopState ReadDesktop()
+    {
+        using var adv = Registry.CurrentUser.OpenSubKey(Advanced);
+        using var ss = Registry.CurrentUser.OpenSubKey(SearchSettings);
+        using var se = Registry.CurrentUser.OpenSubKey(Search);
+        using var p = Registry.CurrentUser.OpenSubKey(Personalize);
+        int Get(RegistryKey? k, string name, int def) => k?.GetValue(name) is int i ? i : def;
+        return new DesktopState(
+            SearchHighlights: Get(ss, "IsDynamicSearchBoxEnabled", 1) == 1,
+            SearchBoxMode: Get(se, "SearchboxTaskbarMode", 2),
+            Widgets: Get(adv, "TaskbarDa", 1) == 1,
+            TaskView: Get(adv, "ShowTaskViewButton", 1) == 1,
+            Chat: Get(adv, "TaskbarMn", 1) == 1,
+            Copilot: Get(adv, "ShowCopilotButton", 1) == 1,
+            CenterTaskbar: Get(adv, "TaskbarAl", 1) == 1,
+            AccentOnTaskbar: Get(p, "ColorPrevalence", 0) == 1);
+    }
+
+    public static void SetSearchHighlights(bool on) => Set(SearchSettings, "IsDynamicSearchBoxEnabled", on ? 1 : 0, "SearchSettings");
+    /// <summary>0 hidden, 1 icon only, 2 search box, 3 icon and label.</summary>
+    public static void SetSearchBoxMode(int mode) => Set(Search, "SearchboxTaskbarMode", mode, "TraySettings");
+    public static void SetWidgets(bool on) => Set(Advanced, "TaskbarDa", on ? 1 : 0, "TraySettings");
+    public static void SetTaskView(bool on) => Set(Advanced, "ShowTaskViewButton", on ? 1 : 0, "TraySettings");
+    public static void SetChat(bool on) => Set(Advanced, "TaskbarMn", on ? 1 : 0, "TraySettings");
+    public static void SetCopilot(bool on) => Set(Advanced, "ShowCopilotButton", on ? 1 : 0, "TraySettings");
+    public static void SetCenterTaskbar(bool center) => Set(Advanced, "TaskbarAl", center ? 1 : 0, "TraySettings");
+    public static void SetAccentOnTaskbar(bool on) => Set(Personalize, "ColorPrevalence", on ? 1 : 0, "ImmersiveColorSet");
+
+    private static void Set(string key, string name, int value, string broadcastSetting)
+    {
+        using (var k = Registry.CurrentUser.CreateSubKey(key)!) k.SetValue(name, value, RegistryValueKind.DWord);
+        Broadcast(broadcastSetting);
+    }
+
+    /// <summary>Restart Explorer so taskbar changes that Windows only reads at startup take effect.</summary>
+    public static void RestartExplorer()
+    {
+        foreach (var p in System.Diagnostics.Process.GetProcessesByName("explorer"))
+        {
+            try { p.Kill(); } catch { /* may already be gone */ }
+        }
+        Thread.Sleep(800);
+        if (System.Diagnostics.Process.GetProcessesByName("explorer").Length == 0)
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe") { UseShellExecute = true });
+    }
+
     private static void Broadcast(string setting)
     {
         const int HWND_BROADCAST = 0xFFFF;

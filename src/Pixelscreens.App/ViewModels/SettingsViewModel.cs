@@ -35,7 +35,10 @@ public sealed partial class SettingsViewModel : ObservableObject
         _s.Hotkeys.TryGetValue("cursor.toggle", out _toggleCursorHotkey);
         _loading = false;
         RefreshWindowsState();
+        LoadDesktop();
+        _loading = true;
         StartWithWindows = StartupService.IsEnabled();
+        _loading = false;
     }
 
     public string[] Algorithms { get; } = { "Cross", "Strait" };
@@ -63,6 +66,83 @@ public sealed partial class SettingsViewModel : ObservableObject
     // Hotkeys
     [ObservableProperty] private string? _showHotkey;
     [ObservableProperty] private string? _toggleCursorHotkey;
+
+    // Windows desktop tweaks (read live from the registry)
+    [ObservableProperty] private bool _searchHighlights;
+    [ObservableProperty] private int _searchBoxMode;
+    [ObservableProperty] private bool _widgets;
+    [ObservableProperty] private bool _taskView;
+    [ObservableProperty] private bool _chat;
+    [ObservableProperty] private bool _copilot;
+    [ObservableProperty] private bool _centerTaskbar;
+    [ObservableProperty] private bool _accentOnTaskbar;
+    public string[] SearchBoxModes { get; } = { "Hidden", "Icon only", "Search box", "Icon and label" };
+
+    partial void OnSearchHighlightsChanged(bool v) => Tweak(() => WindowsThemeService.SetSearchHighlights(v));
+    partial void OnSearchBoxModeChanged(int v) => Tweak(() => WindowsThemeService.SetSearchBoxMode(v));
+    partial void OnWidgetsChanged(bool v) => Tweak(() => WindowsThemeService.SetWidgets(v));
+    partial void OnTaskViewChanged(bool v) => Tweak(() => WindowsThemeService.SetTaskView(v));
+    partial void OnChatChanged(bool v) => Tweak(() => WindowsThemeService.SetChat(v));
+    partial void OnCopilotChanged(bool v) => Tweak(() => WindowsThemeService.SetCopilot(v));
+    partial void OnCenterTaskbarChanged(bool v) => Tweak(() => WindowsThemeService.SetCenterTaskbar(v));
+    partial void OnAccentOnTaskbarChanged(bool v) => Tweak(() => WindowsThemeService.SetAccentOnTaskbar(v));
+
+    private void Tweak(Action apply)
+    {
+        if (_loading) return;
+        try { apply(); Status = "Windows updated. If the taskbar didn't change, press Restart Explorer."; }
+        catch (Exception ex) { Status = $"could not change Windows: {ex.Message}"; }
+    }
+
+    private void LoadDesktop()
+    {
+        try
+        {
+            var d = WindowsThemeService.ReadDesktop();
+            _loading = true;
+            SearchHighlights = d.SearchHighlights;
+            SearchBoxMode = Math.Clamp(d.SearchBoxMode, 0, 3);
+            Widgets = d.Widgets;
+            TaskView = d.TaskView;
+            Chat = d.Chat;
+            Copilot = d.Copilot;
+            CenterTaskbar = d.CenterTaskbar;
+            AccentOnTaskbar = d.AccentOnTaskbar;
+        }
+        catch (Exception ex)
+        {
+            Status = $"could not read Windows settings: {ex.Message}";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    [RelayCommand]
+    private void RestartExplorer()
+    {
+        try { WindowsThemeService.RestartExplorer(); Status = "Explorer restarted."; }
+        catch (Exception ex) { Status = $"could not restart Explorer: {ex.Message}"; }
+    }
+
+    [RelayCommand]
+    private void CleanTaskbar()
+    {
+        _loading = true;
+        try
+        {
+            WindowsThemeService.SetSearchHighlights(false); SearchHighlights = false;
+            WindowsThemeService.SetSearchBoxMode(1); SearchBoxMode = 1;
+            WindowsThemeService.SetWidgets(false); Widgets = false;
+            WindowsThemeService.SetTaskView(false); TaskView = false;
+            WindowsThemeService.SetChat(false); Chat = false;
+            WindowsThemeService.SetCopilot(false); Copilot = false;
+            Status = "Taskbar cleaned: no search highlights, icon-only search, no Widgets, Task View, Chat, or Copilot.";
+        }
+        catch (Exception ex) { Status = $"could not clean taskbar: {ex.Message}"; }
+        finally { _loading = false; }
+    }
 
     // Windows skin
     [ObservableProperty] private string _windowsThemeState = "";

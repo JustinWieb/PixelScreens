@@ -269,6 +269,33 @@
         </Border>
 
         <Border Classes="panel">
+          <StackPanel Spacing="10">
+            <DockPanel>
+              <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8">
+                <Button Classes="primary" Content="Clean taskbar" Command="{Binding CleanTaskbarCommand}" ToolTip.Tip="Turn off search highlights, Widgets, Task View, Chat, Copilot; search as icon only" />
+                <Button Content="Restart Explorer" Command="{Binding RestartExplorerCommand}" />
+              </StackPanel>
+              <TextBlock Classes="pixel" Text="TASKBAR" VerticalAlignment="Center" />
+            </DockPanel>
+            <TextBlock Classes="muted" TextWrapping="Wrap" Text="These change Windows directly, the moment you click. Most apply live; if one doesn't, restart Explorer." />
+            <Grid ColumnDefinitions="220,240" RowDefinitions="Auto">
+              <TextBlock Text="Search box" VerticalAlignment="Center" />
+              <ComboBox Grid.Column="1" ItemsSource="{Binding SearchBoxModes}" SelectedIndex="{Binding SearchBoxMode}" HorizontalAlignment="Stretch" />
+            </Grid>
+            <WrapPanel>
+              <CheckBox Content="Search highlights (the emoji in the search box)" IsChecked="{Binding SearchHighlights}" Margin="0,0,16,0" />
+              <CheckBox Content="Widgets button" IsChecked="{Binding Widgets}" Margin="0,0,16,0" />
+              <CheckBox Content="Task View button" IsChecked="{Binding TaskView}" Margin="0,0,16,0" />
+              <CheckBox Content="Chat button" IsChecked="{Binding Chat}" Margin="0,0,16,0" />
+              <CheckBox Content="Copilot button" IsChecked="{Binding Copilot}" Margin="0,0,16,0" />
+              <CheckBox Content="Centre the taskbar (off = left, Windows 10 style)" IsChecked="{Binding CenterTaskbar}" Margin="0,0,16,0" />
+              <CheckBox Content="Accent colour on Start and taskbar" IsChecked="{Binding AccentOnTaskbar}" Margin="0,0,16,0" />
+            </WrapPanel>
+            <TextBlock Classes="dim" TextWrapping="Wrap" Text="For a custom Start button image or a solid taskbar colour, install Windhawk (Start button styler) or TranslucentTB. Windows has no setting for those." />
+          </StackPanel>
+        </Border>
+
+        <Border Classes="panel">
           <DockPanel>
             <Button DockPanel.Dock="Right" Classes="primary" Content="Match Windows to this theme" Command="{Binding MatchWindowsCommand}" VerticalAlignment="Center" Margin="16,0,0,0" />
             <StackPanel Spacing="4">
