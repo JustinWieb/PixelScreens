@@ -76,6 +76,9 @@ public sealed class LayoutCanvas : Control
     private DateTime _lastClick;
     private MonitorBox? _lastClickBox;
 
+    private const double SnapPx = 10;   // snap distance in canvas pixels
+    private double? _snapX, _snapY;     // canvas coordinates of active guide lines
+
     private double _scale = 0.2;      // canvas px per mm
     private Point _origin;            // canvas point for (0mm, 0mm)
     private MonitorBox? _drag;
@@ -142,6 +145,43 @@ public sealed class LayoutCanvas : Control
         _origin.Y + m.YMm * _scale,
         m.WidthMm * _scale,
         m.HeightMm * _scale);
+
+    /// <summary>
+    /// Snap the dragged monitor's outer edges (bezels included) to other monitors' outer edges:
+    /// touching (my left = their right) or aligned (my top = their top). Nearest within SnapPx wins.
+    /// </summary>
+    private (double x, double y) SnapToNeighbours(MonitorBox d, double x, double y)
+    {
+        _snapX = _snapY = null;
+        var others = Monitors?.Where(m => m != d).ToList();
+        if (others is null || others.Count == 0) return (x, y);
+
+        var thr = SnapPx / _scale; // mm
+        double myL = x - d.BezelLeftMm, myR = x + d.WidthMm + d.BezelRightMm;
+        double myT = y - d.BezelTopMm, myB = y + d.HeightMm + d.BezelBottomMm;
+
+        double bestDx = double.MaxValue, bestX = x, guideX = 0;
+        double bestDy = double.MaxValue, bestY = y, guideY = 0;
+        foreach (var o in others)
+        {
+            double oL = o.XMm - o.BezelLeftMm, oR = o.XMm + o.WidthMm + o.BezelRightMm;
+            double oT = o.YMm - o.BezelTopMm, oB = o.YMm + o.HeightMm + o.BezelBottomMm;
+            // Horizontal candidates: (my edge, target edge)
+            foreach (var (mine, target) in new[] { (myL, oR), (myR, oL), (myL, oL), (myR, oR) })
+            {
+                var dx = target - mine;
+                if (Math.Abs(dx) < Math.Abs(bestDx) && Math.Abs(dx) <= thr) { bestDx = dx; bestX = x + dx; guideX = target; }
+            }
+            foreach (var (mine, target) in new[] { (myT, oB), (myB, oT), (myT, oT), (myB, oB) })
+            {
+                var dy = target - mine;
+                if (Math.Abs(dy) < Math.Abs(bestDy) && Math.Abs(dy) <= thr) { bestDy = dy; bestY = y + dy; guideY = target; }
+            }
+        }
+        if (bestDx != double.MaxValue) { x = bestX; _snapX = _origin.X + guideX * _scale; }
+        if (bestDy != double.MaxValue) { y = bestY; _snapY = _origin.Y + guideY * _scale; }
+        return (x, y);
+    }
 
     private IEnumerable<(Point pt, Handle h)> Handles(MonitorBox m, Rect r)
     {
@@ -230,6 +270,14 @@ public sealed class LayoutCanvas : Control
             var size = new FormattedText(m.SizeText, System.Globalization.CultureInfo.InvariantCulture,
                 FlowDirection.LeftToRight, new Typeface(FontFamily.Default), 11, MutedBrush);
             ctx.DrawText(size, new Point(r.X + 8, r.Bottom - size.Height - 8));
+        }
+
+        // Snap guides while dragging.
+        if (_drag is not null && (_snapX is not null || _snapY is not null))
+        {
+            var gp = new Pen(AccentBrush, 1, new DashStyle(new double[] { 4, 3 }, 0));
+            if (_snapX is double gx) ctx.DrawLine(gp, new Point(Math.Round(gx) + 0.5, 0), new Point(Math.Round(gx) + 0.5, Bounds.Height));
+            if (_snapY is double gy) ctx.DrawLine(gp, new Point(0, Math.Round(gy) + 0.5), new Point(Bounds.Width, Math.Round(gy) + 0.5));
         }
 
         // Handles on the selected monitor: corners resize the panel, edges set that side's bezel.
@@ -337,8 +385,11 @@ public sealed class LayoutCanvas : Control
             return;
         }
 
-        _drag.XMm = Math.Round((_dragStartMm.x + dxMm) / SnapMm) * SnapMm;
-        _drag.YMm = Math.Round((_dragStartMm.y + dyMm) / SnapMm) * SnapMm;
+        var nx = _dragStartMm.x + dxMm;
+        var ny = _dragStartMm.y + dyMm;
+        (nx, ny) = SnapToNeighbours(_drag, nx, ny);
+        _drag.XMm = Math.Round(nx * 10) / 10;
+        _drag.YMm = Math.Round(ny * 10) / 10;
     }
 
     protected override void OnPointerExited(PointerEventArgs e)
@@ -355,6 +406,7 @@ public sealed class LayoutCanvas : Control
         var clicked = _drag;
         var wasHandle = _handle != Handle.None;
         _drag = null;
+        _snapX = _snapY = null;
         _handle = Handle.None;
         Cursor = Cursor.Default;
         InvalidateVisual();
