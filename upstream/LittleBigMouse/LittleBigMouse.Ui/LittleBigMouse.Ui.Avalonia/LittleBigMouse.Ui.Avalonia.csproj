@@ -1,0 +1,139 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFrameworks>net10.0</TargetFrameworks>
+		<Platforms>x64</Platforms>
+		<OutputType>WinExe</OutputType>
+		<ApplicationIcon>Assets\lbm-logo.ico</ApplicationIcon>
+		<AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+		<Copyright>Mathieu GRENET</Copyright>
+		<PackageProjectUrl>https://github.com/mgth/LittleBigMouse/wiki</PackageProjectUrl>
+		<PackageIcon>lbm.png</PackageIcon>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<RepositoryUrl>https://github.com/mgth/LittleBigMouse</RepositoryUrl>
+		<ApplicationManifest>app.manifest</ApplicationManifest>
+		<StartupObject>LittleBigMouse.Ui.Avalonia.Program</StartupObject>
+		<Title>Little Big Mouse</Title>
+	</PropertyGroup>
+	<ItemGroup>
+		<None Remove="Assets\**" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Remove="MainIcon.ico" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<TrimmerRootDescriptor Include="Roots.xml" />
+		<InternalsVisibleTo Include="LittleBigMouse.Ui.Avalonia.Tests" />
+	</ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.0" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />
+    <PackageReference Include="H.Pipes" Version="15.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
+    <PackageReference Include="MessageBox.Avalonia" Version="12.0.0" />
+    <PackageReference Include="ReactiveUI.Avalonia" Version="12.0.3" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.11" />
+    <PackageReference Include="System.Resources.Extensions" Version="9.0.8" />
+    <PackageReference Include="Svg.Controls.Skia.Avalonia" Version="12.0.0.13" />
+  </ItemGroup>
+
+	<ItemGroup>
+		<UpToDateCheckInput Remove="Main\MainView.axaml.cs" />
+		<UpToDateCheckInput Remove="Plugins\Default\DefaultMonitorView.axaml" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<AvaloniaResource Include="Assets\**" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<AvaloniaResource Remove="Assets\Icon\MainIcon.ico" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Content Include="Assets\lbm-logo.ico" />
+		<Content Include="MainIcon.ico" />
+	</ItemGroup>
+
+
+	<ItemGroup>
+		<None Include="..\README.md">
+			<Pack>True</Pack>
+			<PackagePath>\</PackagePath>
+		</None>
+		<None Include="Assets\lbm.png">
+			<Pack>True</Pack>
+			<PackagePath>\</PackagePath>
+		</None>
+	</ItemGroup>
+
+
+	<ItemGroup>
+		<ProjectReference Include="..\..\HLab.Avalonia\HLab.Base.Avalonia\HLab.Base.Avalonia.csproj" />
+		<ProjectReference Include="..\..\HLab.Avalonia\HLab.Bugs.Avalonia\HLab.Bugs.Avalonia.csproj" />
+		<ProjectReference Include="..\..\HLab.Avalonia\HLab.Geo.Avalonia\HLab.Geo.Avalonia.csproj" />
+		<ProjectReference Include="..\..\HLab.Avalonia\HLab.Mvvm.Avalonia\HLab.Mvvm.Avalonia.csproj" />
+		<ProjectReference Include="..\..\HLab.Avalonia\HLab.Theme.Avalonia\HLab.Theme.Avalonia.csproj" />
+		<ProjectReference Include="..\..\HLab.Avalonia\HLab.UserNotification.Avalonia\HLab.UserNotification.Avalonia.csproj" />
+		<ProjectReference Include="..\..\HLab.Core\HLab.Base\HLab.Base.csproj" />
+		<ProjectReference Include="..\..\HLab.Core\HLab.Mvvm.ReactiveUI\HLab.Mvvm.ReactiveUI.csproj" />
+		<ProjectReference Include="..\..\HLab.Core\HLab.UserNotification\HLab.UserNotification.csproj" />
+		<ProjectReference Include="..\..\LittleBigMouse.Core\LittleBigMouse.DisplayLayout\LittleBigMouse.DisplayLayout.csproj" />
+		<ProjectReference Include="..\..\LittleBigMouse.Plugins\LittleBigMouse.Plugin.Layout.Avalonia\LittleBigMouse.Plugin.Layout.Avalonia.csproj" />
+		<ProjectReference Include="..\..\LittleBigMouse.Plugins\LittleBigMouse.Plugin.Vcp.Avalonia\LittleBigMouse.Plugin.Vcp.Avalonia.csproj" />
+		<ProjectReference Include="..\..\LittleBigMouse.Plugins\LittleBigMouse.Plugin.Vcp\LittleBigMouse.Plugin.Vcp.csproj" />
+		<ProjectReference Include="..\..\LittleBigMouse.Plugins\LittleBigMouse.Plugin.Wallpaper.Avalonia\LittleBigMouse.Plugin.Wallpaper.Avalonia.csproj" />
+		<ProjectReference Include="..\..\LittleBigMouse.Plugins\LittleBigMouse.Plugins.Avalonia\LittleBigMouse.Plugins.Avalonia.csproj" />
+		<ProjectReference Include="..\..\LittleBigMouse.Plugins\LittleBigMouse.Plugins.Core\LittleBigMouse.Plugins.csproj" />
+		<ProjectReference Include="..\..\LittleBigMouse.Ui.Loader\LittleBigMouse.Ui.Loader.csproj" />
+		<ProjectReference Include="..\LittleBigMouse.Ui.Core\LittleBigMouse.Ui.Core.csproj" />
+		<ProjectReference Include="..\..\LittleBigMouse.Platform.Windows\LittleBigMouse.Platform.Windows.csproj" />
+		<ProjectReference Include="..\..\LittleBigMouse.Platform.Linux\LittleBigMouse.Platform.Linux.csproj" />
+	</ItemGroup>
+
+
+	<ItemGroup>
+		<Resource Include="MainIcon.ico" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Compile Update="Controls\LocationControlView.axaml.cs">
+			<DependentUpon>%(Filename)</DependentUpon>
+		</Compile>
+		<Compile Update="MonitorFrame\ListItemMonitorView.axaml.cs">
+			<DependentUpon>ListItemMonitorView.axaml</DependentUpon>
+		</Compile>
+		<Compile Update="MonitorFrame\MonitorExpandedFrameView.axaml.cs">
+			<DependentUpon>MonitorExpandedFrameView.axaml</DependentUpon>
+		</Compile>
+		<Compile Update="MonitorFrame\MonitorFrameView.axaml.cs">
+			<DependentUpon>MonitorFrameView.axaml</DependentUpon>
+		</Compile>
+		<Compile Update="MonitorsListPresenterView.axaml.cs">
+			<DependentUpon>MonitorsListPresenterView.axaml</DependentUpon>
+		</Compile>
+		<Compile Update="MultiMonitorsLayoutPresenterView.axaml.cs">
+			<DependentUpon>MultiMonitorsLayoutPresenterView.axaml</DependentUpon>
+		</Compile>
+		<Compile Update="Plugins\Debug\DebugMonitorView.axaml.cs">
+			<DependentUpon>DebugMonitorView.axaml</DependentUpon>
+		</Compile>
+		<Compile Update="Properties\Resources.Designer.cs">
+			<DesignTime>True</DesignTime>
+			<AutoGen>True</AutoGen>
+			<DependentUpon>Resources.resx</DependentUpon>
+		</Compile>
+	</ItemGroup>
+
+	<ItemGroup>
+		<EmbeddedResource Update="Properties\Resources.resx">
+			<Generator>ResXFileCodeGenerator</Generator>
+			<LastGenOutput>Resources.Designer.cs</LastGenOutput>
+		</EmbeddedResource>
+	</ItemGroup>
+
+
+</Project>

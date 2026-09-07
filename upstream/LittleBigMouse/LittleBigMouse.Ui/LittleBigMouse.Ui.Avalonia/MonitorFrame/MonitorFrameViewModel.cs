@@ -1,0 +1,343 @@
+﻿using Avalonia;
+using Avalonia.Media;
+using HLab.Base.ReactiveUI;
+using HLab.ColorTools;
+using HLab.Geo.Avalonia;
+using HLab.Mvvm.Annotations;
+using HLab.Mvvm.ReactiveUI;
+using LittleBigMouse.DisplayLayout;
+using LittleBigMouse.DisplayLayout.Dimensions;
+using LittleBigMouse.DisplayLayout.Monitors;
+using LittleBigMouse.Plugins;
+using LittleBigMouse.Zoning;
+using ReactiveUI;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using System.Reactive.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace LittleBigMouse.Ui.Avalonia.MonitorFrame;
+
+public class MonitorFrameViewModel : ViewModel<PhysicalMonitor>, IMvvmContextProvider, IMonitorFrameViewModel
+{
+   readonly LatestResourceSlot<IImage> _wallpapers = new();
+
+   public MonitorFrameViewModel()
+   {
+      _rotated = this.WhenAnyValue(
+          e => e.MonitorsPresenter.VisualRatio,
+          e => e.Model.DepthProjection,
+          e => e.Model.Borders.Left,
+          e => e.Model.Borders.Top,
+          e => e.Model.Borders.Right,
+          e => e.Model.Borders.Bottom,
+          (ratio, mm, _l, _t, _r, _b) => mm?.ScaleWithLocation(ratio)
+      ).Log(this, "_rotated").ToProperty(this, e => e.Rotated);
+
+      _rotation = this.WhenAnyValue(
+          e => e.Model.ActiveSource.Source.Orientation,
+          e => e.Rotated.Height,
+          e => e.Rotated.Width,
+          (o, h, w) =>
+          {
+             if (o == 0) return null;
+
+             var t = new TransformGroup();
+             t.Children.Add(new RotateTransform(90 * o));
+
+             //switch (o)
+             //{
+             //    case 1:
+             //        t.Children.Add(new TranslateTransform(w, 0));
+             //        break;
+             //    case 2:
+             //        t.Children.Add(new TranslateTransform(w, h));
+             //        break;
+             //    case 3:
+             //        t.Children.Add(new TranslateTransform(0, h));
+             //        break;
+             //}
+             return t;
+          }
+      ).Log(this, "_rotation").ToProperty(this, e => e.Rotation);
+
+      _logoPadding = this.WhenAnyValue(
+          e => e.MonitorsPresenter.VisualRatio.X,
+          e => e.MonitorsPresenter.VisualRatio.Y,
+          (x, y) => new Thickness(4 * x, 4 * y, 4 * x, 4 * y)
+      ).Log(this, "_logoPadding").ToProperty(this, e => e.LogoPadding);
+
+      _left = this.WhenAnyValue(
+          e => e.MonitorsPresenter.VisualRatio.X,
+          e => e.Location.X,
+          e => e.MonitorsPresenter.Model.X0,
+          e => e.Model.DepthProjection.LeftBorder,
+
+          (rx, x, x0, leftBorder) => rx * (x0 + x - leftBorder)
+      ).Log(this, "_left").ToProperty(this, e => e.Left);
+
+      _top = this.WhenAnyValue(
+          e => e.MonitorsPresenter.VisualRatio.Y,
+          e => e.Location.Y,
+          e => e.MonitorsPresenter.Model.Y0,
+          e => e.Model.DepthProjection.TopBorder,
+
+          (ry, y, y0, topBorder) => ry * (y0 + y - topBorder)
+
+      ).Log(this, "_top").ToProperty(this, e => e.Top);
+
+      _margin = this.WhenAnyValue(
+          e => e.Left,
+          e => e.Top, (left, top) => new Thickness(left, top, 0, 0)
+          ).Log(this, "_margin").ToProperty(this, e => e.Margin);
+
+      _unrotated = this.WhenAnyValue(
+          e => e.MonitorsPresenter.VisualRatio,
+          e => e.Model.DepthProjectionUnrotated,
+          e => e.Model.ActiveSource.Source.Orientation,
+          (ratio, mmu, _) => mmu.ScaleWithLocation(ratio)
+      ).Log(this, "_unrotated").ToProperty(this, e => e.Unrotated);
+
+      this.WhenAnyValue(
+          e => e.Model.ActiveSource.Source.WallpaperPath,
+          e => e.Model.ActiveSource.Source.WallpaperStyle,
+          e => e.Model.ActiveSource.Source.BackgroundColor)
+          .Subscribe(p =>
+          {
+             var generation = _wallpapers.Begin();
+             _ = SetWallpaperSafely(p.Item1, p.Item2, p.Item3, generation);
+          }).DisposeWith(this);
+
+      this
+          .WhenAnyValue(e => e.Model)
+          .Select(e => e)
+          .Do(e =>
+          {
+             if(e is null) return;
+             Location = new FrameLocation(e);
+          })
+          .Subscribe().DisposeWith(this);
+
+      _selected = this.WhenAnyValue(
+          e => e.MonitorsPresenter.SelectedMonitor,
+          e => e.Model,
+          (selected, monitor) => selected == monitor
+          )
+          .ToProperty(this, e => e.Selected);
+
+      _probeStrips = this.WhenAnyValue(
+          e => e.MonitorsPresenter.ProbeReport,
+          e => e.Rotated,
+          e => e.Model.ActiveSource.Source.Id,
+          GetProbeStrips)
+          .ToProperty(this, e => e.ProbeStrips);
+
+      Disposer.OnDispose(() =>
+      {
+         _wallpapers.Dispose();
+         Wallpaper = null;
+      });
+   }
+
+   Rect GetBounds(int shrink)
+   {
+      Debug.Assert(Model?.Layout != null);
+
+      var r = new Rect();
+      foreach (var s in Model.Layout.PhysicalSources)
+      {
+         // Windows spans the wallpaper over the currently ATTACHED monitors only. A detached
+         // source can linger in the layout with stale non-zero pixel bounds (EnumDisplaySettings
+         // still returns the registry mode), which would inflate the span bounding box. Skip it,
+         // as the rest of the layout code does (e.g. MonitorLocationViewModel, ZonesLayoutFactory).
+         if (!s.Source.AttachedToDesktop) continue;
+         r = r.Union(s.Source.InPixel.Bounds.ToAvalonia());
+      }
+
+      return new(r.X / shrink, r.Y / shrink, r.Width / shrink, r.Height / shrink);
+   }
+
+   async Task SetWallpaper(
+      string path, WallpaperStyle style, ColorRGB<double> color, long generation)
+   {
+      Debug.Assert(Model?.ActiveSource?.Source != null);
+
+      // A detached monitor shows no desktop wallpaper in Windows; don't render one on its frame
+      // (its pixel bounds may also be stale/non-zero, which would produce a bogus crop).
+      if (string.IsNullOrWhiteSpace(path) || !Model.ActiveSource.Source.AttachedToDesktop)
+      {
+         ApplyWallpaper(null, generation);
+         return;
+      }
+
+      //All dimensions are divided by this value to reduce memory usage
+      const int shrink = 4;
+
+      var r = Model.ActiveSource.Source.InPixel.Bounds;
+
+
+      if (r.Width < shrink || r.Height < shrink)
+      {
+         ApplyWallpaper(null, generation);
+         return;
+      }
+
+      var monitor = new Rect(r.X / shrink, r.Y / shrink, r.Width / shrink, r.Height / shrink);
+
+      var bitmap = style switch
+      {
+         WallpaperStyle.Fill => await WallpaperRendererHelper.GetWallpaperFillAsync(path, monitor.Size, shrink),
+
+         WallpaperStyle.Fit => await WallpaperRendererHelper.GetWallpaperFitAsync(path, monitor.Size, color, shrink),
+
+         WallpaperStyle.Stretch => await WallpaperRendererHelper.GetWallpaperStretchAsync(path, monitor.Size, shrink),
+
+         WallpaperStyle.Tile => await WallpaperRendererHelper.GetWallpaperTileAsync(path, monitor, GetBounds(shrink), shrink),
+
+         WallpaperStyle.Center => await WallpaperRendererHelper.GetWallpaperCenterAsync(path, monitor.Size, color, shrink),
+
+         WallpaperStyle.Span => await WallpaperRendererHelper.GetWallpaperSpanAsync(path, monitor, GetBounds(shrink), shrink),
+
+         _ => throw new ArgumentOutOfRangeException()
+      };
+
+      ApplyWallpaper(bitmap, generation);
+
+#if DEBUG
+      WallpaperRendererHelper.ImageSharpDebugStats();
+#endif
+   }
+
+   async Task SetWallpaperSafely(
+      string path, WallpaperStyle style, ColorRGB<double> color, long generation)
+   {
+      try
+      {
+         await SetWallpaper(path, style, color, generation);
+      }
+      catch (Exception error)
+      {
+         Debug.WriteLine($"Wallpaper rendering failed: {error}");
+         ApplyWallpaper(null, generation);
+      }
+   }
+
+   // The wallpaper renderers await ImageSharp I/O + Task.Run without capturing the UI context, so
+   // the continuation here can resume off the UI thread. Assigning the UI-bound Wallpaper property
+   // off-thread does not refresh the Image, so marshal the assignment back to the UI thread.
+   void ApplyWallpaper(IImage? bitmap, long generation)
+   {
+      void Apply()
+      {
+         if (_wallpapers.TryReplace(generation, bitmap)) Wallpaper = bitmap;
+      }
+
+      if (global::Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+         Apply();
+      else
+         global::Avalonia.Threading.Dispatcher.UIThread.Post(Apply);
+   }
+
+   public IMonitorsLayoutPresenterViewModel? MonitorsPresenter { get;
+      set => this.RaiseAndSetIfChanged(ref field, value);
+   }
+
+   public TransformGroup? Rotation => _rotation.Value;
+   readonly ObservableAsPropertyHelper<TransformGroup?> _rotation;
+
+   public Thickness LogoPadding => _logoPadding.Value;
+   readonly ObservableAsPropertyHelper<Thickness> _logoPadding;
+
+   public Thickness Margin => _margin.Value;
+   readonly ObservableAsPropertyHelper<Thickness> _margin;
+
+   public double Left => _left.Value;
+   readonly ObservableAsPropertyHelper<double> _left;
+
+   public double Top => _top.Value;
+   readonly ObservableAsPropertyHelper<double> _top;
+
+   public IDisplaySize Rotated => _rotated.Value;
+   readonly ObservableAsPropertyHelper<IDisplaySize> _rotated;
+
+   public IDisplaySize Unrotated => _unrotated.Value;
+   readonly ObservableAsPropertyHelper<IDisplaySize> _unrotated;
+
+   public bool Selected => _selected.Value;
+   readonly ObservableAsPropertyHelper<bool> _selected;
+
+   public IReadOnlyList<ProbeStripViewModel> ProbeStrips => _probeStrips.Value;
+   readonly ObservableAsPropertyHelper<IReadOnlyList<ProbeStripViewModel>> _probeStrips;
+
+   /// <summary>
+   /// Map the edge-prober runs of this monitor's zone onto frame-local strips.
+   /// Runs are in desktop pixels along the zone edge; the strip position is the
+   /// proportional stretch of the monitor's CONTENT edge (borders excluded).
+   /// </summary>
+   IReadOnlyList<ProbeStripViewModel> GetProbeStrips(
+      ProbeReport? report, IDisplaySize? rotated, string? sourceId)
+   {
+      if (report is null || rotated is null || string.IsNullOrEmpty(sourceId))
+         return [];
+
+      var zone = report.Zones.FirstOrDefault(z => z.DeviceId == sourceId);
+      if (zone is null) return [];
+
+      var px = Model?.ActiveSource?.Source?.InPixel?.Bounds;
+      if (px is not { Width: >= 1, Height: >= 1 } pixels) return [];
+
+      var x0 = rotated.LeftBorder;
+      var y0 = rotated.TopBorder;
+      var w = rotated.Width;
+      var h = rotated.Height;
+      const double thickness = 5.0;
+
+      string TargetName(int id)
+      {
+         var target = report.Zones.FirstOrDefault(z => z.Id == id);
+         return target is null ? $"zone {id}"
+            : string.IsNullOrEmpty(target.Name) ? target.DeviceId : target.Name;
+      }
+
+      var strips = new List<ProbeStripViewModel>();
+      foreach (var edge in zone.Edges)
+      foreach (var run in edge.Runs)
+      {
+         var vertical = edge.Side is "Left" or "Right";
+         var span = vertical ? pixels.Height : pixels.Width;
+         var origin = vertical ? pixels.Y : pixels.X;
+         var from = Math.Clamp((run.From - origin) / span, 0.0, 1.0);
+         var to = Math.Clamp((run.To + 1 - origin) / span, 0.0, 1.0);
+         if (to <= from) continue;
+
+         var tip = run.IsWall
+            ? $"{edge.Side}: wall — the cursor stops here"
+            : $"{edge.Side}: crosses into {TargetName(run.TargetId)}";
+
+         strips.Add(edge.Side switch
+         {
+            "Left" => new ProbeStripViewModel(x0, y0 + from * h, thickness, (to - from) * h, run.IsWall, tip),
+            "Right" => new ProbeStripViewModel(x0 + w - thickness, y0 + from * h, thickness, (to - from) * h, run.IsWall, tip),
+            "Top" => new ProbeStripViewModel(x0 + from * w, y0, (to - from) * w, thickness, run.IsWall, tip),
+            _ => new ProbeStripViewModel(x0 + from * w, y0 + h - thickness, (to - from) * w, thickness, run.IsWall, tip),
+         });
+      }
+      return strips;
+   }
+
+   public IImage? Wallpaper { get;
+      private set => this.RaiseAndSetIfChanged(ref field, value);
+   }
+
+   public IFrameLocation Location { get;
+      set => this.RaiseAndSetIfChanged(ref field, value);
+   }
+
+   public void ConfigureMvvmContext(IMvvmContext ctx)
+   {
+      ctx.AddCreator<IScreenContentViewModel>(e => e.MonitorFrameViewModel = this);
+   }
+}

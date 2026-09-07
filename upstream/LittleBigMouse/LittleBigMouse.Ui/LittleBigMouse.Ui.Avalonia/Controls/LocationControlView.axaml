@@ -1,0 +1,131 @@
+﻿<UserControl x:Class="LittleBigMouse.Ui.Avalonia.Controls.LocationControlView"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:icons="clr-namespace:HLab.Icons.Avalonia.Icons;assembly=HLab.Icons.Avalonia"
+             xmlns:controls="clr-namespace:LittleBigMouse.Ui.Avalonia.Controls"
+             mc:Ignorable="d"
+             d:DesignWidth="800"
+             x:DataType="controls:LocationControlViewModel"
+             x:CompileBindings="True"
+             >
+	<Grid Margin="14,0">
+		<StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Left" Opacity="0.051" OpacityMask="Gray">
+			<icons:IconView
+                Foreground="Black"
+				IconMaxHeight="40"
+                Path="icon/lbm_logo"
+            />
+			<Label FontSize="30" Foreground="{DynamicResource ThemeForegroundBrush}">Little Big Mouse</Label>
+		</StackPanel>
+
+		<!-- Foreign-layout mode: unmistakable badge, load-outcome status, and the way back. -->
+		<Border Classes="Badge Virtual"
+		        IsVisible="{Binding IsVirtualLayout}"
+		        HorizontalAlignment="Center" VerticalAlignment="Center"
+		        ToolTip.Tip="{Binding VirtualLayoutOrigin}">
+			<StackPanel Orientation="Horizontal" Spacing="8">
+				<Path Data="{StaticResource Lbm.Icon.Virtual}" Width="14" Height="14"
+				      Stretch="Uniform" VerticalAlignment="Center"/>
+				<TextBlock Text="Virtual layout" FontWeight="SemiBold" VerticalAlignment="Center"/>
+				<TextBlock Text="{Binding DaemonLayoutInfo}" Opacity="0.75" VerticalAlignment="Center"
+				           IsVisible="{Binding DaemonLayoutInfo, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+				<Button Content="Back to local layout"
+				        Command="{Binding BackToLocalLayoutCommand}"
+				        FontSize="12" Padding="8,2" VerticalAlignment="Center"/>
+			</StackPanel>
+		</Border>
+
+		<StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+
+			<Button Classes="ToolbarButton Menu">
+				<ToolTip.Tip>Export layout</ToolTip.Tip>
+				<Button.Flyout>
+					<MenuFlyout Placement="TopEdgeAlignedLeft">
+						<MenuItem Header="Export layout..." Click="ExportLayout_Click"/>
+						<MenuItem Header="Copy layout" Click="CopyLayout_Click"/>
+						<MenuItem Header="Open virtual layout..." Click="OpenVirtualLayout_Click"
+						          IsVisible="{Binding Model.Options.DebugTools, FallbackValue=False}"
+						          ToolTip.Tip="View a layout exported by another user, without the hardware. Display only: it cannot be loaded as your own layout."/>
+					</MenuFlyout>
+				</Button.Flyout>
+				<Panel>
+					<icons:IconView Height="22" Width="22" Path="Icon/LayoutExport"
+					                IsVisible="{Binding !IsVirtualLayout}"/>
+					<icons:IconView Height="22" Width="22" Path="Icon/LayoutVirtual"
+					                IsVisible="{Binding IsVirtualLayout}"/>
+				</Panel>
+			</Button>
+
+			<Border Classes="ToolbarSeparator"/>
+
+			<Button Classes="ToolbarButton"
+				Command="{Binding SaveCommand}">
+				<ToolTip.Tip>Save</ToolTip.Tip>
+				<icons:IconView Height="22" Width="22" Path="Icon/Save"/>
+			</Button>
+
+			<!-- Apply, and the way it is delivered. One control: the click always hands the
+			     layout to the engine and keeps it, the chevron chooses whether edits also
+			     go out continuously on the way. The icon is the mode. -->
+			<Button Classes="ToolbarButton SplitPrimary"
+				Classes.Live="{Binding LiveUpdate}"
+				Command="{Binding StartCommand}">
+				<ToolTip.Tip>
+					<StackPanel MaxWidth="320">
+						<TextBlock Text="{Binding StartTooltip}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+						<TextBlock TextWrapping="Wrap" Opacity="0.75" Text="{Binding StartTooltipDetail}"/>
+					</StackPanel>
+				</ToolTip.Tip>
+				<Panel>
+					<icons:IconView Height="22" Width="22" Path="Icon/Start"
+					                IsVisible="{Binding !LiveUpdate}"/>
+					<Path Data="{StaticResource Lbm.Icon.Live}" Width="22" Height="22"
+					      Stretch="Uniform" VerticalAlignment="Center"
+					      IsVisible="{Binding LiveUpdate}"/>
+				</Panel>
+			</Button>
+
+			<Button Classes="ToolbarButton SplitChevron Menu"
+				Classes.Live="{Binding LiveUpdate}">
+				<Button.Flyout>
+					<!-- Both modes, always, with the current one marked: a single item that
+					     changed its wording read as a control that was off or unavailable,
+					     which is not what a mode is. No tips in here — a tip inside a flyout
+					     lands on the pointer, over the item being clicked. -->
+					<MenuFlyout Placement="TopEdgeAlignedLeft">
+						<MenuItem Header="Apply on click"
+						          ToggleType="Radio" GroupName="ApplyMode"
+						          IsChecked="{Binding !LiveUpdate, Mode=OneWay}"
+						          Command="{Binding ManualUpdateCommand}"/>
+						<MenuItem Header="Live update"
+						          ToggleType="Radio" GroupName="ApplyMode"
+						          IsChecked="{Binding LiveUpdate, Mode=OneWay}"
+						          IsEnabled="{Binding CanLiveUpdate}"
+						          Command="{Binding LiveUpdateCommand}"/>
+					</MenuFlyout>
+				</Button.Flyout>
+				<!-- Points down, the way a dropdown does, even though the flyout opens
+				     upward: the chevron says "there is a menu here", not which way it
+				     unrolls. -->
+				<Path Data="{StaticResource Lbm.Icon.ChevronDown}" Width="10" Height="10"
+				      Stretch="Uniform" VerticalAlignment="Center"/>
+			</Button>
+
+			<Button Classes="ToolbarButton"
+				Command="{Binding StopCommand}">
+				<ToolTip.Tip>Stop</ToolTip.Tip>
+				<icons:IconView Height="22" Width="22" Path="Icon/Stop"/>
+			</Button>
+
+			<Button Classes="ToolbarButton"
+				Command="{Binding UndoCommand}">
+				<ToolTip.Tip>Undo</ToolTip.Tip>
+				<icons:IconView Height="22" Width="22" Path="Icon/Undo"/>
+			</Button>
+
+		</StackPanel>
+
+	</Grid>
+</UserControl>

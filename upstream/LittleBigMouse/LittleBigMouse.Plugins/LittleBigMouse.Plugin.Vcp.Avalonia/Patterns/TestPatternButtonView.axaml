@@ -1,0 +1,33 @@
+﻿<UserControl x:Class="LittleBigMouse.Plugin.Vcp.Avalonia.Patterns.TestPatternButtonView"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:patterns="clr-namespace:LittleBigMouse.Plugin.Vcp.Avalonia.Patterns"
+             xmlns:avalonia="clr-namespace:HLab.Sys.Windows.MonitorVcp.Avalonia;assembly=HLab.Sys.Windows.MonitorVcp.Avalonia"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800"
+             x:DataType="patterns:TestPatternButtonViewModel"
+             >
+    <Design.DataContext>
+        <patterns:TestPatternButtonViewModel />
+    </Design.DataContext>
+
+    <Button
+        CornerRadius="8"
+        Padding="4"
+        Command="{Binding TestPatternCommand}"
+        CommandParameter="{Binding #PatternThumb}">
+        <Border CornerRadius="5" ClipToBounds="True">
+            <avalonia:TestPattern
+                x:Name="PatternThumb"
+                Height="28" Width="50"
+                PatternColorA="{Binding ColorA}"
+                PatternColorB="{Binding ColorB}"
+                PatternType="{Binding TestPatternType}"
+                Rgb ="{Binding Rgb}"
+                Orientation="{Binding Orientation}"
+                />
+        </Border>
+    </Button>
+</UserControl>

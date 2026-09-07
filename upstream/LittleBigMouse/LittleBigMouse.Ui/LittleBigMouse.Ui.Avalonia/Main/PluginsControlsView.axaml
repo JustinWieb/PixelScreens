@@ -1,0 +1,56 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:avalonia="clr-namespace:HLab.Mvvm.Avalonia;assembly=HLab.Mvvm.Avalonia"
+             xmlns:main="clr-namespace:LittleBigMouse.Ui.Avalonia.Main"
+             xmlns:icons="clr-namespace:HLab.Icons.Avalonia.Icons;assembly=HLab.Icons.Avalonia"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="LittleBigMouse.Ui.Avalonia.Main.PluginsControlsView"
+             x:DataType="main:MainViewModel"
+             >
+	<Border Classes="Toolbar" ClipToBounds="False">
+		<StackPanel Orientation="Horizontal">
+
+			<ToggleButton Classes="ToolbarButton" IsChecked="{Binding  OptionsIsVisible}">
+				<icons:IconView Height="22"
+				                Width="22"
+				                Path="Icon/Options"
+				                ToolTip.Tip="Options"/>
+			</ToggleButton>
+
+			<Border Classes="ToolbarSeparator"/>
+
+			<ItemsControl
+				Foreground="{DynamicResource HLab.Brushes.Foreground}"
+				ItemsSource="{Binding Commands}"
+        >
+
+				<ItemsControl.ItemsPanel>
+					<ItemsPanelTemplate>
+						<WrapPanel />
+					</ItemsPanelTemplate>
+				</ItemsControl.ItemsPanel>
+
+				<ItemsControl.ItemTemplate>
+					<DataTemplate>
+						<avalonia:ViewLocator Model="{Binding}" ClipToBounds="False"/>
+					</DataTemplate>
+				</ItemsControl.ItemTemplate>
+
+			</ItemsControl>
+
+			<Border Classes="ToolbarSeparator"/>
+
+			<ToggleButton Classes="ToolbarButton" IsChecked="{Binding ViewList}">
+				<icons:IconView Height="22"
+				                Width="22"
+				                Path="Icon/MonitorList"
+				                ToolTip.Tip="Switch to list view"
+				/>
+			</ToggleButton>
+		</StackPanel>
+
+	</Border>
+
+</UserControl>

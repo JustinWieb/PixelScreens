@@ -1,0 +1,370 @@
+﻿using System.Collections.Concurrent;
+using System.Text.Json.Serialization;
+using HLab.Geo;
+
+namespace LittleBigMouse.Zoning;
+
+public class Zone : IZonesSerializable
+{
+    public int Id { get; set; }
+    public string DeviceId { get; set; }
+    public string Name { get; set; }
+
+    public Rect PixelsBounds { get; set; }
+    public Rect PhysicalBounds { get; set; }
+
+    public IBorderResistance BorderResistance { get; set; }
+
+    [JsonIgnore]
+    public Zone Main { get; set;}
+
+    public int MainId => Main.Id;
+
+    public bool IsMain=> ReferenceEquals(this,Main);
+
+    public double Dpi { get; private set; }
+
+    Matrix _pixelsToPhysicalMatrix;
+    Matrix _physicalToPixelsMatrix;
+
+    public Zone(){}
+
+    public Zone(
+        IBorderResistance borderResistance,
+        string deviceId,
+        string name,
+        Rect pixelsBounds,
+        Rect physicalBounds,
+        Zone? main = null)
+    {
+        DeviceId = deviceId;
+        Name = name;
+
+        BorderResistance = borderResistance;
+
+        PixelsBounds = pixelsBounds;
+        PhysicalBounds = physicalBounds;
+
+        Main = main ?? this;
+    }
+
+    public void Init(int id)
+    {
+        Id = id;
+
+        _pixelsToPhysicalMatrix = Matrix
+            .CreateTranslation(PixelsBounds.X, -PixelsBounds.Y)
+            * Matrix.CreateScale(1 / PixelsBounds.Width, 1 / PixelsBounds.Height)
+            * Matrix.CreateScale(PhysicalBounds.Width, PhysicalBounds.Height)
+            * Matrix.CreateTranslation(PhysicalBounds.X, PhysicalBounds.Y);
+
+        _physicalToPixelsMatrix = Matrix.CreateTranslation(-PhysicalBounds.X, -PhysicalBounds.Y)
+            * Matrix.CreateScale(1 / PhysicalBounds.Width, 1 / PhysicalBounds.Height)
+            * Matrix.CreateScale(PixelsBounds.Width, PixelsBounds.Height)
+            * Matrix.CreateTranslation(PixelsBounds.X, PixelsBounds.Y);
+
+        var dpiX = PixelsBounds.Width / (PhysicalBounds.Width / 25.4);
+        var dpiY = PixelsBounds.Height / (PhysicalBounds.Height / 25.4);
+
+        Dpi = Math.Sqrt(dpiX * dpiX + dpiY * dpiY) / Math.Sqrt(2);
+    }
+
+    List<ZoneLink> ComputeLinks(
+        ZonesLayout layout,
+        Func<Zone,IBorderSide> getBorderSide,
+        Func<Zone,double> nearFunc,
+        Func<Zone,double> farFunc,
+        Func<Zone,double> fromFunc,
+        Func<Zone,double> toFunc,
+        Func<Zone,int> fromPixelsFunc,
+        Func<Zone,int> toPixelsFunc,
+        double direction)
+    {
+        var values = new List<double> {double.MinValue, double.MaxValue};
+
+        foreach (var zone in layout.Zones)
+        {
+            if (ReferenceEquals(zone, this)) continue;
+            Add(fromFunc(zone));
+            Add(toFunc(zone));
+        }
+
+        // User-drawn sections are just more cut points: once their bounds are in
+        // here, every interval below falls entirely inside one section or entirely
+        // outside them all, and the daemon receives an ordinary link list. This is
+        // the whole of the feature's runtime cost — nothing reaches the hook.
+        var side = getBorderSide(this);
+        var edgeOrigin = fromFunc(this);
+        var edgeEnd = toFunc(this);
+        foreach (var section in side.Sections)
+        {
+            Add(edgeOrigin + section.From);
+            Add(edgeOrigin + section.To);
+        }
+
+        var links = new List<ZoneLink>();
+
+        values = values.OrderBy(e => e).ToList();
+
+        for (var i = 0; i < values.Count-1; i++)
+        {
+            var from = values[i];
+            var to = values[i+ 1];
+            Zone? target = null;
+            var min = layout.MaxTravelDistance;
+
+
+            //test if this zone is in or intersect current range 
+            if (from <= toFunc(this) && to >= fromFunc(this))
+            {
+                foreach (var nextZone in layout.Zones.Except([this]))
+                {
+                    //test if next zone is in the right direction
+                    if (direction * (farFunc(nextZone) - farFunc(this)) < 0) continue;
+
+                    // test if next zone is in or intersect current range
+                    if (from < fromFunc(nextZone) || to > toFunc(nextZone)) continue;
+
+                    var distance = direction * (nearFunc(nextZone) - farFunc(this));
+
+                    // test if next zone is nearer than best candidate
+                    if (distance > min) continue;
+
+                    target = nextZone;
+                    min = distance;
+                }
+
+                target = target?.Main;
+            }
+
+            var sourceFrom = fromFunc(this);
+            var sourceTo = toFunc(this);
+            var targetFrom = target!=null?fromFunc(target):0.0;
+            var targetTo = target!=null?toFunc(target):0.0;
+
+            var sourceFromPixel = fromPixelsFunc(this);
+            var sourceToPixel = toPixelsFunc(this);
+            var targetFromPixel = target!=null?fromPixelsFunc(target):0;
+            var targetToPixel = target!=null?toPixelsFunc(target):0;
+
+            var resistance = ResistanceOver(from, to);
+
+            // Adjacent intervals only merge when they are indistinguishable to the
+            // daemon. Comparing the target alone — as this did before sections
+            // existed — would silently swallow the boundary between two sections
+            // of different settings that happen to point at the same monitor.
+            if (links.Count > 0
+                && ReferenceEquals(links.Last().Target, target)
+                && links.Last().HasSameResistanceAs(resistance))
+            {
+                links.Last().To = to;
+                links.Last().SourceToPixel = Interpolate(to,sourceFrom,sourceTo, sourceFromPixel,sourceToPixel);
+                links.Last().TargetToPixel = Interpolate(to,targetFrom,targetTo, targetFromPixel,targetToPixel);
+            }
+            else
+            {
+
+                links.Add(new()
+                {
+                    BorderResistance = resistance.Move,
+                    MoveBlock = resistance.MoveBlock,
+                    DragResistance = resistance.Drag,
+                    DragBlock = resistance.DragBlock,
+                    Distance = min,
+                    From = from,
+                    To = to,
+                    SourceFromPixel = Interpolate(from,sourceFrom,sourceTo, sourceFromPixel,sourceToPixel),
+                    SourceToPixel = Interpolate(to,sourceFrom,sourceTo, sourceFromPixel,sourceToPixel),
+                    TargetFromPixel = Interpolate(from,targetFrom,targetTo, targetFromPixel,targetToPixel),
+                    TargetToPixel = Interpolate(to,targetFrom,targetTo, targetFromPixel,targetToPixel),
+                    Target = target
+                });
+            }
+
+            continue;
+
+            int Interpolate(double value, double fromMm, double toMm, int pixelFrom, int pixelTo)
+            {
+                switch (value)
+                {
+                    case >= double.MaxValue:
+                        return int.MaxValue;
+                    case <= double.MinValue:
+                        return int.MinValue;
+                }
+
+                var length = toMm - fromMm;
+                var pixelLength = pixelTo - pixelFrom;
+
+                return (int)((value - fromMm) * (double)pixelLength / length) + pixelFrom;
+            }
+
+            // Which section governs the interval [intervalFrom, intervalTo].
+            // Section bounds are cut points of `values`, so an interval is never
+            // split across two sections and probing its midpoint is exact.
+            BorderResistanceValues ResistanceOver(double intervalFrom, double intervalTo)
+            {
+                var low = Math.Max(intervalFrom, edgeOrigin);
+                var high = Math.Min(intervalTo, edgeEnd);
+
+                // Intervals off the ends of this edge can't be crossed anyway
+                // (no target), and their midpoint is meaningless — one of the
+                // bounds is a ±double sentinel. Fall back to the side default.
+                if (low < high)
+                {
+                    var probe = low + (high - low) / 2;
+
+                    foreach (var section in side.Sections)
+                    {
+                        if (probe < edgeOrigin + section.From) continue;
+                        if (probe >= edgeOrigin + section.To) continue;
+
+                        return new BorderResistanceValues(
+                            section.Move, section.MoveBlock,
+                            section.Drag, section.DragBlock);
+                    }
+                }
+
+                // Not covered by any section: the edge offers no resistance. An edge
+                // used to carry a default of its own, but that is exactly a section
+                // spanning it, and one way of saying a thing is enough.
+                return new BorderResistanceValues(0, false, 0, false);
+            }
+        }
+
+        if (links.Count==0) links.Add(new ZoneLink
+        {
+            Distance = double.MaxValue,
+
+            From = double.MinValue, //fromFunc(this), TODO : 
+            To = double.MaxValue, //toFunc(this),
+            Target = null
+        });
+
+        return links;
+
+        void Add(double v)
+        {
+            if(!values.Contains(v)) values.Add(v);
+        }
+    }
+
+    public List<ZoneLink> LeftLinks { get; private set; }
+    public List<ZoneLink> TopLinks { get; private set; }
+    public List<ZoneLink> RightLinks { get; private set; }
+    public List<ZoneLink> BottomLinks { get; private set; }
+
+    public void ComputeLinks(ZonesLayout layout)
+    {
+        LeftLinks = ComputeLinks(layout, 
+            z => z.BorderResistance.Left,
+            z => z.PhysicalBounds.Right, 
+            z => z.PhysicalBounds.Left, 
+            z=>z.PhysicalBounds.Top,
+            z => z.PhysicalBounds.Bottom, 
+            z=> (int)z.PixelsBounds.Top,
+            z => (int)z.PixelsBounds.Bottom, 
+            -1);
+
+        TopLinks = ComputeLinks(layout, 
+            z => z.BorderResistance.Top,
+            z => z.PhysicalBounds.Bottom, 
+            z => z.PhysicalBounds.Top, 
+            z=>z.PhysicalBounds.Left,
+            z => z.PhysicalBounds.Right, 
+            z=> (int)z.PixelsBounds.Left,
+            z => (int)z.PixelsBounds.Right, 
+            -1);
+
+        RightLinks = ComputeLinks(layout, 
+            z => z.BorderResistance.Right,
+            z => z.PhysicalBounds.Left, 
+            z => z.PhysicalBounds.Right, 
+            z=>z.PhysicalBounds.Top,
+            z => z.PhysicalBounds.Bottom, 
+            z=>(int)z.PixelsBounds.Top,
+            z => (int)z.PixelsBounds.Bottom, 
+            
+            1);
+
+        BottomLinks = ComputeLinks(layout, 
+            z => z.BorderResistance.Bottom,
+            z => z.PhysicalBounds.Top, 
+            z => z.PhysicalBounds.Bottom, 
+            z=>z.PhysicalBounds.Left,
+            z => z.PhysicalBounds.Right, 
+            z=>(int)z.PixelsBounds.Left,
+            z => (int)z.PixelsBounds.Right, 
+            1);
+    }
+
+
+    public Point PixelsToPhysical(Point px) => px * _pixelsToPhysicalMatrix;
+
+    public Point PhysicalToPixels(Point mm) => mm * _physicalToPixelsMatrix;
+
+    public Point CenterPixel => new Point(PixelsBounds.Left + PixelsBounds.Width / 2, PixelsBounds.Top + PixelsBounds.Height / 2);
+
+    public bool ContainsPixel(Point pixel)
+    {
+        if (pixel.X < PixelsBounds.X) return false;
+        if (pixel.Y < PixelsBounds.Y) return false;
+        if (pixel.X >= PixelsBounds.Right) return false;
+        if (pixel.Y >= PixelsBounds.Bottom) return false;
+        return true;
+    }
+
+    public bool ContainsMm(Point mm) => PhysicalBounds.Contains(mm);
+
+
+    public Point InsidePixelsBounds(Point p)
+    {
+        if (p.X < PixelsBounds.X) p = new Point(PixelsBounds.X, p.Y);
+        else if (p.X > PixelsBounds.Right - 1.0) p = new Point(PixelsBounds.Right - 1.0, p.Y);
+
+        if (p.Y < PixelsBounds.Y) p = new Point(p.X, PixelsBounds.Y);
+        else if (p.Y > PixelsBounds.Bottom - 1.0) p = new Point(p.X, PixelsBounds.Bottom - 1.0);
+
+        return p;
+    }
+
+    public Point InsidePhysicalBounds(Point mm)
+    {
+        if (mm.X < PhysicalBounds.X) mm = new Point(PhysicalBounds.X, mm.Y);
+        else if (mm.X > PhysicalBounds.Right) mm = new Point(PhysicalBounds.Right, mm.Y);
+
+        if (mm.Y < PhysicalBounds.Y) mm = new Point(mm.X, PhysicalBounds.Y);
+        else if (mm.Y > PhysicalBounds.Bottom) mm = new Point(mm.X, PhysicalBounds.Bottom);
+
+        return mm;
+    }
+
+    readonly ConcurrentDictionary<Zone, IEnumerable<Rect>> _travels = new();
+
+    public IEnumerable<Rect> TravelPixels(IEnumerable<Zone> zones, Zone target)
+    {
+        return _travels.GetOrAdd(
+            target.Main, 
+            
+            z => PixelsBounds.TravelPath(
+                z.PixelsBounds, 
+                zones
+                    .Where(z => ReferenceEquals(z, z.Main))
+                    .Select(z => z.PixelsBounds)
+                    .ToArray()
+                )
+            );
+    }
+
+    public string Serialize()
+    {
+        // DeviceId rides along for the edge prober's report: it is the stable key the
+        // UI uses to map a probed zone back onto a monitor (zone ids are just order).
+        return ZoneSerializer.Serialize(this, e => e.Id, e => e.Name, e => e.DeviceId,
+            e => e.PixelsBounds, e => e.PhysicalBounds,
+            e => e.LeftLinks, e => e.TopLinks,
+            e => e.RightLinks, e => e.BottomLinks);
+
+        //return $@"<Zone Name=""{Name}"" DeviceId=""{DeviceId}""><PixelsBounds>{XmlSerializer.Serialize(PixelsBounds)}</PixelsBounds><PhysicalBounds>{XmlSerializer.Serialize(PhysicalBounds)}</PhysicalBounds></Zone>";
+    }
+}

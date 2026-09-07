@@ -1,0 +1,58 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+	<TargetFrameworks>net10.0</TargetFrameworks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Platforms>x64</Platforms>
+	<AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="LittleBigMouse.Ui.Avalonia.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="Assets\**" />
+  </ItemGroup>
+
+	<ItemGroup>
+		<AvaloniaResource Include="Assets\**" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="..\..\HLab.Avalonia\HLab.Mvvm.Avalonia\HLab.Mvvm.Avalonia.csproj" />
+	  <ProjectReference Include="..\..\HLab.Core\HLab.Base\HLab.Base.csproj" />
+	  <ProjectReference Include="..\..\HLab.Core\HLab.Mvvm.Annotations\HLab.Mvvm.Annotations.csproj" />
+	  <ProjectReference Include="..\..\HLab.Core\HLab.Mvvm.ReactiveUI\HLab.Mvvm.ReactiveUI.csproj" />
+	  <ProjectReference Include="..\..\HLab.Core\HLab.Sys.Windows.API\HLab.Sys.Windows.API.csproj" />
+	  <ProjectReference Include="..\..\LittleBigMouse.Core\LittleBigMouse.DisplayLayout\LittleBigMouse.DisplayLayout.csproj" />
+	  <ProjectReference Include="..\LittleBigMouse.Plugins.Avalonia\LittleBigMouse.Plugins.Avalonia.csproj" />
+	  <ProjectReference Include="..\LittleBigMouse.Plugins.Core\LittleBigMouse.Plugins.csproj" />
+	</ItemGroup>
+
+  <ItemGroup>
+	<Compile Update="LocationPlugin\Anchors\AnchorsView.axaml.cs">
+      <DependentUpon>AnchorsView.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="LocationPlugin\MonitorLocationView.axaml.cs">
+      <DependentUpon>MonitorLocationView.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="BorderResistancePlugin\BorderResistanceView.axaml.cs">
+      <DependentUpon>BorderResistanceView.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="Rulers\RulerPanelView.axaml.cs">
+      <DependentUpon>RulerPanelView.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="Rulers\RulerView.axaml.cs">
+      <DependentUpon>RulerView.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="Rulers\Tester.axaml.cs">
+      <DependentUpon>Tester.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="SizePlugin\MonitorSizeView.axaml.cs">
+      <DependentUpon>MonitorSizeView.axaml</DependentUpon>
+    </Compile>
+
+  </ItemGroup>
+
+</Project>

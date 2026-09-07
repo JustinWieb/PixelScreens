@@ -1,0 +1,271 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:LittleBigMouse.Ui.Avalonia.Controls">
+
+	<!-- Lbm.* brushes, icons and the SettingRow ControlTheme live in App.axaml
+	     (Application.Resources) so ThemeDictionaries variant switching works. -->
+
+	<Style Selector="controls|SettingRow.Sub">
+		<Setter Property="Padding" Value="44,8,14,10"/>
+	</Style>
+
+	<!-- A row that has stopped being what you are looking at: keep what it offers, drop
+	     the sentence explaining it. -->
+	<Style Selector="controls|SettingRow.Compact">
+		<Setter Property="Padding" Value="14,6"/>
+	</Style>
+	<Style Selector="controls|SettingRow.Compact /template/ TextBlock#PART_Description">
+		<Setter Property="IsVisible" Value="False"/>
+	</Style>
+
+	<!-- Pinned above the scroller rather than scrolling with it. The separator only
+	     appears once there is content passing underneath, so at rest the card looks like
+	     any other. -->
+	<Style Selector="Border.PinnedCard.Compact">
+		<Setter Property="CornerRadius" Value="8"/>
+		<Setter Property="BoxShadow" Value="0 2 8 0 #22000000"/>
+	</Style>
+
+	<Style Selector="controls|SettingRow ToggleSwitch">
+		<Setter Property="OnContent" Value="{x:Null}"/>
+		<Setter Property="OffContent" Value="{x:Null}"/>
+		<Setter Property="MinWidth" Value="0"/>
+		<Setter Property="Margin" Value="0"/>
+		<Setter Property="Padding" Value="0"/>
+	</Style>
+
+	<Style Selector="controls|SettingRow NumericUpDown">
+		<Setter Property="Width" Value="130"/>
+		<Setter Property="FontSize" Value="13"/>
+	</Style>
+
+	<Style Selector="controls|SettingRow ComboBox">
+		<Setter Property="MinWidth" Value="110"/>
+		<Setter Property="FontSize" Value="13"/>
+	</Style>
+
+	<Style Selector="TextBlock.SectionHeader">
+		<Setter Property="FontSize" Value="12"/>
+		<Setter Property="Foreground" Value="{DynamicResource Lbm.Brushes.Text.Secondary}"/>
+		<Setter Property="Margin" Value="4,14,0,4"/>
+	</Style>
+
+	<!-- A setting that is not doing what it says. Inside the card, under the row it
+	     belongs to, because it is about that row and nothing else. -->
+	<Style Selector="TextBlock.SettingWarning">
+		<Setter Property="FontSize" Value="12"/>
+		<Setter Property="TextWrapping" Value="Wrap"/>
+		<Setter Property="Foreground" Value="{DynamicResource Lbm.Brushes.Badge.Virtual.Foreground}"/>
+		<Setter Property="Margin" Value="14,0,14,12"/>
+	</Style>
+
+	<Style Selector="Border.SettingCard">
+		<Setter Property="Background" Value="{DynamicResource Lbm.Brushes.Card.Background}"/>
+		<Setter Property="BorderBrush" Value="{DynamicResource Lbm.Brushes.Card.Border}"/>
+		<Setter Property="BorderThickness" Value="1"/>
+		<Setter Property="CornerRadius" Value="8"/>
+		<Setter Property="Margin" Value="0,3"/>
+	</Style>
+
+	<Style Selector="Border.SettingSeparator">
+		<Setter Property="Height" Value="1"/>
+		<Setter Property="Background" Value="{DynamicResource Lbm.Brushes.Card.Separator}"/>
+		<Setter Property="Margin" Value="14,0"/>
+	</Style>
+
+	<Style Selector="Border.Badge">
+		<Setter Property="CornerRadius" Value="10"/>
+		<Setter Property="Padding" Value="10,3"/>
+		<Setter Property="VerticalAlignment" Value="Center"/>
+	</Style>
+	<Style Selector="Border.Badge.Success">
+		<Setter Property="Background" Value="{DynamicResource Lbm.Brushes.Badge.Success.Background}"/>
+	</Style>
+	<Style Selector="Border.Badge.Success TextBlock">
+		<Setter Property="FontSize" Value="12"/>
+		<Setter Property="Foreground" Value="{DynamicResource Lbm.Brushes.Badge.Success.Foreground}"/>
+	</Style>
+	<Style Selector="Border.Badge.Success Path">
+		<Setter Property="Fill" Value="{DynamicResource Lbm.Brushes.Badge.Success.Foreground}"/>
+	</Style>
+	<Style Selector="Border.Badge.Virtual">
+		<Setter Property="Background" Value="{DynamicResource Lbm.Brushes.Badge.Virtual.Background}"/>
+	</Style>
+	<Style Selector="Border.Badge.Virtual TextBlock">
+		<Setter Property="FontSize" Value="12"/>
+		<Setter Property="Foreground" Value="{DynamicResource Lbm.Brushes.Badge.Virtual.Foreground}"/>
+	</Style>
+	<Style Selector="Border.Badge.Virtual Path">
+		<Setter Property="Fill" Value="{DynamicResource Lbm.Brushes.Badge.Virtual.Foreground}"/>
+	</Style>
+
+	<Style Selector="ListBox.ChoiceCards">
+		<Setter Property="Background" Value="Transparent"/>
+		<Setter Property="BorderThickness" Value="0"/>
+		<Setter Property="Padding" Value="0"/>
+		<Setter Property="ItemsPanel">
+			<ItemsPanelTemplate>
+				<UniformGrid Rows="1"/>
+			</ItemsPanelTemplate>
+		</Setter>
+	</Style>
+	<Style Selector="ListBox.ChoiceCards ListBoxItem">
+		<Setter Property="Padding" Value="10,8"/>
+		<Setter Property="Margin" Value="0,0,8,0"/>
+		<Setter Property="CornerRadius" Value="8"/>
+		<Setter Property="BorderThickness" Value="1"/>
+		<Setter Property="BorderBrush" Value="{DynamicResource Lbm.Brushes.Card.Border}"/>
+		<Setter Property="Background" Value="Transparent"/>
+		<Setter Property="VerticalContentAlignment" Value="Top"/>
+	</Style>
+	<Style Selector="ListBox.ChoiceCards ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+		<Setter Property="Background" Value="{DynamicResource Lbm.Brushes.Card.Background}"/>
+	</Style>
+	<Style Selector="ListBox.ChoiceCards ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+		<Setter Property="Background" Value="{DynamicResource Lbm.Brushes.Accent.Faint}"/>
+		<Setter Property="BorderBrush" Value="{DynamicResource Lbm.Brushes.Accent}"/>
+	</Style>
+
+	<Style Selector="ListBox.ProcessList">
+		<Setter Property="Background" Value="Transparent"/>
+		<Setter Property="BorderThickness" Value="0"/>
+		<Setter Property="Padding" Value="0"/>
+		<Setter Property="MaxHeight" Value="150"/>
+	</Style>
+	<Style Selector="ListBox.ProcessList ListBoxItem">
+		<Setter Property="Padding" Value="14,3"/>
+		<Setter Property="MinHeight" Value="28"/>
+	</Style>
+
+	<Style Selector="Border.Toolbar">
+		<Setter Property="Background" Value="{DynamicResource Lbm.Brushes.Card.Background}"/>
+		<Setter Property="BorderBrush" Value="{DynamicResource Lbm.Brushes.Card.Separator}"/>
+		<Setter Property="BorderThickness" Value="0,0,0,1"/>
+		<Setter Property="Padding" Value="6,4"/>
+	</Style>
+	<Style Selector="Border.Toolbar.Bottom">
+		<Setter Property="BorderThickness" Value="0,1,0,0"/>
+	</Style>
+
+	<Style Selector="Border.ToolbarSeparator">
+		<Setter Property="Width" Value="1"/>
+		<Setter Property="Height" Value="22"/>
+		<Setter Property="Background" Value="{DynamicResource Lbm.Brushes.Card.Separator}"/>
+		<Setter Property="Margin" Value="6,0"/>
+		<Setter Property="VerticalAlignment" Value="Center"/>
+	</Style>
+
+	<Style Selector="ToggleButton.ToolbarButton, Button.ToolbarButton">
+		<!-- Anchor tips above the button, never on the pointer. Avalonia's default puts
+		     the tip where the cursor is; in a bar sitting at the bottom of the window the
+		     positioner then flips it upward, straight over the button you are aiming at,
+		     and the click lands on the tip's own window instead. Nothing in ToolTip's API
+		     makes that window ignore input — it has ten attached properties and not one
+		     of them is about hit-testing — and IsHitTestVisible would not help either,
+		     since the OS routes the click to that top-level before Avalonia hit-tests
+		     inside it. Keeping the tip off the pointer is the fix, not a mitigation.
+		     Same cause as the border-handle tips in #522. -->
+		<Setter Property="ToolTip.Placement" Value="Top"/>
+		<Setter Property="ToolTip.ShowDelay" Value="700"/>
+		<Setter Property="Background" Value="Transparent"/>
+		<Setter Property="BorderThickness" Value="0"/>
+		<Setter Property="CornerRadius" Value="8"/>
+		<Setter Property="Padding" Value="9"/>
+		<Setter Property="Margin" Value="2,0"/>
+		<Setter Property="VerticalAlignment" Value="Center"/>
+		<!-- IconView maps black SVG strokes to the inherited foreground ;
+		     without an explicit brush monochrome icons stay black on dark. -->
+		<Setter Property="Foreground" Value="{DynamicResource HLab.Brushes.Foreground}"/>
+	</Style>
+	<Style Selector="ToggleButton.ToolbarButton:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+		<Setter Property="Background" Value="{DynamicResource Lbm.Brushes.Card.Background}"/>
+	</Style>
+	<Style Selector="Button.ToolbarButton:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+		<Setter Property="Background" Value="{DynamicResource Lbm.Brushes.Card.Background}"/>
+	</Style>
+	<Style Selector="ToggleButton.ToolbarButton:pressed /template/ ContentPresenter#PART_ContentPresenter">
+		<Setter Property="Background" Value="{DynamicResource Lbm.Brushes.Card.Border}"/>
+	</Style>
+	<Style Selector="Button.ToolbarButton:pressed /template/ ContentPresenter#PART_ContentPresenter">
+		<Setter Property="Background" Value="{DynamicResource Lbm.Brushes.Card.Border}"/>
+	</Style>
+	<!-- OpacityMask forces a composition layer, without it the Opacity value
+	     is applied to the property but ignored by the renderer (same trick as
+	     the old Button.Command style). -->
+	<Style Selector="ToggleButton.ToolbarButton:disabled /template/ ContentPresenter">
+		<Setter Property="Background" Value="Transparent"/>
+		<Setter Property="Opacity" Value="0.25"/>
+		<Setter Property="OpacityMask" Value="Black"/>
+	</Style>
+	<Style Selector="Button.ToolbarButton:disabled /template/ ContentPresenter">
+		<Setter Property="Background" Value="Transparent"/>
+		<Setter Property="Opacity" Value="0.25"/>
+		<Setter Property="OpacityMask" Value="Black"/>
+	</Style>
+	<Style Selector="ToggleButton.ToolbarButton:checked /template/ ContentPresenter#PART_ContentPresenter">
+		<Setter Property="Background" Value="{DynamicResource Lbm.Brushes.Accent.Faint}"/>
+		<Setter Property="BorderBrush" Value="{DynamicResource Lbm.Brushes.Accent}"/>
+		<Setter Property="BorderThickness" Value="1"/>
+	</Style>
+	<!-- A Path has no Fill by default, so a geometry icon in a toolbar button would be
+	     invisible; and unlike IconView it does not follow Foreground on its own. -->
+	<Style Selector="ToggleButton.ToolbarButton Path, Button.ToolbarButton Path">
+		<Setter Property="Fill" Value="{DynamicResource HLab.Brushes.Foreground}"/>
+	</Style>
+	<Style Selector="ToggleButton.ToolbarButton:checked Path">
+		<Setter Property="Fill" Value="{DynamicResource Lbm.Brushes.Accent}"/>
+	</Style>
+
+	<!-- Split button: one action, plus a chevron choosing how it is delivered. Two
+	     ordinary toolbar buttons sharing an outline rather than a SplitButton, so the
+	     bar keeps one flat look and one set of states to reason about. The halves close
+	     the gap between them and each keeps the outer corners only. -->
+	<Style Selector="Button.ToolbarButton.SplitPrimary">
+		<Setter Property="Margin" Value="2,0,0,0"/>
+		<Setter Property="CornerRadius" Value="8,0,0,8"/>
+		<Setter Property="Padding" Value="9,9,7,9"/>
+	</Style>
+	<Style Selector="Button.ToolbarButton.SplitChevron">
+		<Setter Property="Margin" Value="0,0,2,0"/>
+		<Setter Property="CornerRadius" Value="0,8,8,0"/>
+		<Setter Property="Padding" Value="2,9,5,9"/>
+	</Style>
+	<!-- A button whose flyout opens upward must not also put a tip up there: the bar
+	     sits at the bottom of the window, so "above the button" is exactly where the
+	     menu unrolls, and the tip ends up between the pointer and the item it is
+	     travelling to. Send it left instead, over the empty stretch of bar. -->
+	<Style Selector="Button.ToolbarButton.Menu">
+		<Setter Property="ToolTip.Placement" Value="Left"/>
+	</Style>
+	<!-- Live update on: both halves carry it, so the pair still reads as one control. -->
+	<Style Selector="Button.ToolbarButton.Live /template/ ContentPresenter#PART_ContentPresenter">
+		<Setter Property="Background" Value="{DynamicResource Lbm.Brushes.Accent.Faint}"/>
+	</Style>
+	<Style Selector="Button.ToolbarButton.Live Path">
+		<Setter Property="Fill" Value="{DynamicResource Lbm.Brushes.Accent}"/>
+	</Style>
+	<!-- Live update on, and nothing left to apply: the click has nothing to do, so the
+	     command disables itself. Greying the button out then says the mode is off or
+	     broken, which is the opposite of the truth — the engine is being fed as fast as
+	     you can edit. Here the icon is a mode indicator first and an action second, so
+	     it keeps its colour. Must follow the :disabled rules above, which it overrides
+	     by coming later. -->
+	<Style Selector="Button.ToolbarButton.Live:disabled /template/ ContentPresenter#PART_ContentPresenter">
+		<Setter Property="Background" Value="{DynamicResource Lbm.Brushes.Accent.Faint}"/>
+		<Setter Property="Opacity" Value="1"/>
+	</Style>
+
+	<Style Selector="Button.IconButton">
+		<Setter Property="Background" Value="Transparent"/>
+		<Setter Property="BorderThickness" Value="0"/>
+		<Setter Property="Padding" Value="5"/>
+		<Setter Property="CornerRadius" Value="6"/>
+	</Style>
+	<Style Selector="Button.IconButton Path">
+		<Setter Property="Fill" Value="{DynamicResource Lbm.Brushes.Text.Secondary}"/>
+	</Style>
+	<Style Selector="Button.IconButton:pointerover Path">
+		<Setter Property="Fill" Value="{DynamicResource Lbm.Brushes.Text.Primary}"/>
+	</Style>
+
+</Styles>

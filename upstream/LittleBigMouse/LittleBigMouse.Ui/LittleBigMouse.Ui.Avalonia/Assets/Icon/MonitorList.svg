@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="128"
+   height="128"
+   viewBox="0 0 128 128"
+   version="1.1"
+   id="svgMonitorList"
+   xmlns="http://www.w3.org/2000/svg">
+  <!-- One monitor at a time, picked from the list on the left: the list stays outside
+       the monitor and the monitor has no stand (this mode does not mirror the layout).
+       Template colors from MonitorInfo.svg: full black swaps to the theme foreground. -->
+  <rect
+     style="fill:#0078d7;fill-opacity:1;stroke:none;stroke-linecap:round;stroke-linejoin:round"
+     width="76"
+     height="36"
+     x="40"
+     y="44" />
+  <path
+     style="color:#000000;fill:#000000;stroke-linejoin:round"
+     d="m 40,36 c -4,0 -8,4 -8,8 v 40 c 0,4 4,8 8,8 h 76 c 4,0 8,-4 8,-8 V 44 c 0,-4 -4,-8 -8,-8 z m 2,8 h 72 c 1.17719,0 2,0.822812 2,2 v 32 c 0,1.17719 -0.82281,2 -2,2 H 46 c -1.177188,0 -2,-0.82281 -2,-2 V 46 c 0,-1.177188 0.822812,-2 2,-2 z" />
+  <!-- The monitor list, outside the monitor. -->
+  <rect
+     style="fill:#000000;stroke:none;stroke-linecap:round;stroke-linejoin:round"
+     width="24"
+     height="16"
+     x="0"
+     y="30"
+     ry="3" />
+  <rect
+     style="fill:#0078d7;fill-opacity:1;stroke:none"
+     width="20"
+     height="12"
+     x="2"
+     y="32" />
+  <rect
+     style="fill:#ffffff;fill-opacity:1;stroke:none;opacity:0.75"
+     width="12"
+     height="2"
+     x="5"
+     y="35"
+     ry="1" />
+  <rect
+     style="fill:#ffffff;fill-opacity:1;stroke:none;opacity:0.75"
+     width="12"
+     height="2"
+     x="5"
+     y="39"
+     ry="1" />
+  <rect
+     style="fill:#000000;stroke:none;stroke-linecap:round;stroke-linejoin:round"
+     width="24"
+     height="16"
+     x="0"
+     y="56"
+     ry="3" />
+  <rect
+     style="fill:#0078d7;fill-opacity:1;stroke:none"
+     width="20"
+     height="12"
+     x="2"
+     y="58" />
+  <rect
+     style="fill:#ffffff;fill-opacity:1;stroke:none;opacity:0.75"
+     width="12"
+     height="2"
+     x="5"
+     y="61"
+     ry="1" />
+  <rect
+     style="fill:#ffffff;fill-opacity:1;stroke:none;opacity:0.75"
+     width="12"
+     height="2"
+     x="5"
+     y="65"
+     ry="1" />
+  <rect
+     style="fill:#000000;stroke:none;stroke-linecap:round;stroke-linejoin:round"
+     width="24"
+     height="16"
+     x="0"
+     y="82"
+     ry="3" />
+  <rect
+     style="fill:#0078d7;fill-opacity:1;stroke:none"
+     width="20"
+     height="12"
+     x="2"
+     y="84" />
+  <rect
+     style="fill:#ffffff;fill-opacity:1;stroke:none;opacity:0.75"
+     width="12"
+     height="2"
+     x="5"
+     y="87"
+     ry="1" />
+  <rect
+     style="fill:#ffffff;fill-opacity:1;stroke:none;opacity:0.75"
+     width="12"
+     height="2"
+     x="5"
+     y="91"
+     ry="1" />
+</svg>

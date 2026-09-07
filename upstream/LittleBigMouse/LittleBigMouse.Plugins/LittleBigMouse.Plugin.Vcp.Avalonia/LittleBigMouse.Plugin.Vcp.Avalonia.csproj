@@ -1,0 +1,35 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+	<TargetFrameworks>net10.0</TargetFrameworks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Platforms>x64</Platforms>
+	<AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+
+	<ItemGroup>
+		<AvaloniaResource Include="Assets\**" />
+		<InternalsVisibleTo Include="LittleBigMouse.Plugin.Vcp.Avalonia.Tests" />
+	</ItemGroup>
+
+  <ItemGroup>
+	  <!-- 2.1.0-dev line targets Avalonia 12 (2.0.x stable is built against Avalonia 11:
+	       CartesianChart dies on the removed Gestures.PinchEvent field at XAML load). -->
+	  <PackageReference Include="LiveChartsCore.SkiaSharpView.Avalonia" Version="2.1.0-dev-798" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\HLab.Avalonia\HLab.Base.Avalonia\HLab.Base.Avalonia.csproj" />
+    <ProjectReference Include="..\..\HLab.Avalonia\HLab.Mvvm.Avalonia\HLab.Mvvm.Avalonia.csproj" />
+    <ProjectReference Include="..\..\HLab.Core\HLab.Base\HLab.Base.csproj" />
+    <ProjectReference Include="..\..\HLab.Core\HLab.Mvvm.ReactiveUI\HLab.Mvvm.ReactiveUI.csproj" />
+    <ProjectReference Include="..\..\HLab.Core\HLab.Sys.Windows.API\HLab.Sys.Windows.API.csproj" />
+    <ProjectReference Include="..\..\HLab.Sys\HLab.Sys.Windows.Monitors\HLab.Sys.Windows.Monitors.csproj" />
+    <ProjectReference Include="..\..\HLab.Sys\HLab.Sys.Windows.MonitorVcp.Avalonia\HLab.Sys.Windows.MonitorVcp.Avalonia.csproj" />
+    <ProjectReference Include="..\..\HLab.Sys\HLab.Sys.Windows.MonitorVcp\HLab.Sys.Windows.MonitorVcp.csproj" />
+    <ProjectReference Include="..\..\LittleBigMouse.Core\LittleBigMouse.DisplayLayout\LittleBigMouse.DisplayLayout.csproj" />
+    <ProjectReference Include="..\LittleBigMouse.Plugins.Avalonia\LittleBigMouse.Plugins.Avalonia.csproj" />
+    <ProjectReference Include="..\LittleBigMouse.Plugin.Vcp\LittleBigMouse.Plugin.Vcp.csproj" />
+  </ItemGroup>
+
+</Project>

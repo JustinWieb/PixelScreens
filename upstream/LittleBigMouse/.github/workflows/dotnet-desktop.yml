@@ -1,0 +1,321 @@
+# Build LittleBigMouse: managed UI (net10 / Avalonia) + the hook daemon (Rust, x64).
+# - Push / PR on master: run the suites, build everything (installer included, as
+#   a smoke test), upload a portable artifact.
+# - Tag v*: additionally publish the installer as an artifact and attach it to a
+#   draft GitHub release for manual review before publishing.
+#
+# Releases are Authenticode-signed by SignPath Foundation when the SignPath
+# variables are configured; see SIGNING.md. Until they are, the tag build keeps
+# drafting the unsigned release exactly as before, so merging this cannot strand a
+# release behind an approval that has not landed yet.
+
+name: Build
+
+on:
+  push:
+    branches: [ "master" ]
+    tags: [ "v*" ]
+  pull_request:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+env:
+  UI_PROJECT: LittleBigMouse.Ui\LittleBigMouse.Ui.Avalonia\LittleBigMouse.Ui.Avalonia.csproj
+  HOOK_RUST_PROJECT: LittleBigMouse-Hook-Rust\Cargo.toml
+  UI_OUTPUT: LittleBigMouse.Ui\LittleBigMouse.Ui.Avalonia\bin\x64\Release\net10.0
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout (with submodules)
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Install .NET SDK
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 10.0.x
+
+    - name: Derive version from tag
+      id: ver
+      run: |
+        if ("${{ github.ref }}" -like "refs/tags/v*") {
+          $v = "${{ github.ref_name }}" -replace '^v',''
+        } else {
+          $v = ""
+        }
+        "version=$v" >> $env:GITHUB_OUTPUT
+        Write-Host "Release version: '$v'"
+
+    # Before anything is built for shipping: a red suite should cost seconds, not
+    # a full installer run.
+    - name: Test (managed)
+      run: dotnet test LittleBigMouse.sln -c Release --nologo
+
+    - name: Test (Rust hook)
+      run: cargo test --manifest-path $env:HOOK_RUST_PROJECT
+
+    - name: Build UI (net10, x64 Release)
+      run: |
+        $buildArgs = @('-c','Release','-p:Platform=x64')
+        if ("${{ steps.ver.outputs.version }}") { $buildArgs += "-p:Version=${{ steps.ver.outputs.version }}" }
+        dotnet build $env:UI_PROJECT @buildArgs
+
+    # windows-latest ships a stable Rust toolchain preinstalled, so no install step.
+    # LBM_VERSION is to build.rs what -p:Version is to the managed build: off a tag
+    # it stays empty and the version resource falls back to Directory.Build.props.
+    - name: Build hook (Rust, release)
+      env:
+        LBM_VERSION: ${{ steps.ver.outputs.version }}
+      run: cargo build --release --manifest-path $env:HOOK_RUST_PROJECT
+
+    # The hook shipped with no VERSIONINFO at all until build.rs was added, and the
+    # failure mode is silent: a missing crate, a target without a resource compiler,
+    # or a props file that stops parsing all leave a nameless exe that still builds
+    # and still runs. Assert on the artifact rather than trust the build script.
+    - name: Verify hook version resource
+      run: |
+        $exe = 'LittleBigMouse-Hook-Rust\target\release\lbm-hook.exe'
+        $info = (Get-Item $exe).VersionInfo
+        if ($info.ProductName -ne 'Little Big Mouse') {
+          throw "hook ProductName is '$($info.ProductName)', expected 'Little Big Mouse'"
+        }
+        if ($info.FileVersion -notmatch '^\d+\.\d+\.\d+') {
+          throw "hook FileVersion is '$($info.FileVersion)', expected a numeric version"
+        }
+        if ("${{ steps.ver.outputs.version }}" -and
+            $info.FileVersion -ne "${{ steps.ver.outputs.version }}") {
+          throw "hook FileVersion is '$($info.FileVersion)', expected the tag version"
+        }
+        "hook: $($info.ProductName) $($info.FileVersion)"
+
+    # A hook that imports vcruntime140.dll does not start at all on a Windows
+    # that never installed a VC++ redistributable (#539), and every machine that
+    # builds it has one — so the break is invisible right up to the user. The
+    # static CRT that avoids it is set in .cargo/config.toml, which Cargo
+    # resolves from the working directory: moving this build into the hook's own
+    # directory, or adding a second config closer to the manifest, silently
+    # drops the flag. Read the imports off the artifact instead of trusting
+    # that; a PE names its DLLs in plain ASCII, so no toolchain is needed.
+    - name: Verify hook needs no VC++ redistributable
+      run: |
+        $exe = 'LittleBigMouse-Hook-Rust\target\release\lbm-hook.exe'
+        $text = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($exe))
+        if ($text -match 'VCRUNTIME\d|MSVCP\d') {
+          throw "hook imports the MSVC runtime: it will not start where no VC++ redistributable was ever installed (#539)"
+        }
+        "hook: statically linked, no VC++ redistributable needed"
+
+    - name: Stage hook next to UI output
+      # Cargo can't emit a target named with a '.', so the Rust binary is built as
+      # lbm-hook.exe and renamed to the contract name here.
+      run: Copy-Item LittleBigMouse-Hook-Rust\target\release\lbm-hook.exe (Join-Path $env:UI_OUTPUT 'LittleBigMouse.Hook.exe')
+
+    - name: Upload portable artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: LittleBigMouse-portable
+        path: |
+          ${{ env.UI_OUTPUT }}
+          !${{ env.UI_OUTPUT }}\runtimes\linux*\**
+          !${{ env.UI_OUTPUT }}\runtimes\osx*\**
+
+    # Compiled on every build, not only on tags: the installer script breaks in ways
+    # the app build can't catch (ISCC aborts on a wildcard matching nothing, so
+    # dropping the last file of a kind from the output is enough), and a release tag
+    # is far too late to find out. Costs a few seconds. Only the two publishing
+    # steps below stay tag-only.
+    - name: Compile installer (InnoSetup)
+      run: |
+        # Off a release tag there is no version to inject. Leave AppVer undefined
+        # instead of passing an empty one (ISCC rejects an empty AppVersion) and let
+        # the .iss fall back to the built exe's FileVersion.
+        $defines = @()
+        if ("${{ steps.ver.outputs.version }}") { $defines += "/DAppVer=${{ steps.ver.outputs.version }}" }
+        & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" @defines LittleBigMouse.Setup\LittleBigMouse.iss
+        # Also fails the step if ISCC somehow reported success without producing it.
+        Get-ChildItem LittleBigMouse.Setup\LittleBigMouse_*.exe | Select-Object Name, Length
+
+    - name: Upload installer artifact
+      if: startsWith(github.ref, 'refs/tags/v')
+      uses: actions/upload-artifact@v4
+      with:
+        name: LittleBigMouse-installer
+        path: LittleBigMouse.Setup\LittleBigMouse_*.exe
+
+    # Signing input for the release job below. Same exclusions as the portable:
+    # the linux/osx runtime folders are dead weight in a Windows installer and
+    # would only slow the round-trip to SignPath.
+    - name: Upload application for release signing
+      if: startsWith(github.ref, 'refs/tags/v') && vars.SIGNPATH_PROJECT_SLUG != ''
+      uses: actions/upload-artifact@v4
+      with:
+        name: LittleBigMouse-unsigned-win-x64
+        path: |
+          ${{ env.UI_OUTPUT }}
+          !${{ env.UI_OUTPUT }}\runtimes\linux*\**
+          !${{ env.UI_OUTPUT }}\runtimes\osx*\**
+        retention-days: 2
+
+    # Only drafts the unsigned installer while SignPath is not configured yet.
+    # Once the variables are set the signed release job below owns the draft, and
+    # this step stands down so a tag can never produce two drafts.
+    - name: Create draft release
+      if: startsWith(github.ref, 'refs/tags/v') && vars.SIGNPATH_PROJECT_SLUG == ''
+      uses: softprops/action-gh-release@v2
+      with:
+        draft: true
+        # Name the release with the bare numeric version (not the "v5.3.0" tag): the
+        # in-app updater parses the release name as a Version, and a "v" prefix or a
+        # word breaks it (shows "online version 0.0" and blocks the upgrade).
+        name: ${{ steps.ver.outputs.version }}
+        files: LittleBigMouse.Setup\LittleBigMouse_*.exe
+        generate_release_notes: true
+        # Default sponsor footer for the draft (shows above the generated notes;
+        # keep it when hand-editing the release body).
+        body: |
+          💜 If Little Big Mouse is useful to you, consider [sponsoring the project](https://github.com/sponsors/mgth).
+
+  # Windows 11 Smart App Control refuses unsigned installers outright, with no
+  # "run anyway" to click through (issue #535). Signing gives every release one
+  # stable publisher identity, which is what reputation actually accrues to.
+  #
+  # The installer has to be recompiled here rather than reusing the one the build
+  # job made: signing the setup .exe alone would leave the binaries *inside* it
+  # unsigned, and those are what Windows checks once they are on disk.
+  release:
+    name: Sign and draft release
+    if: startsWith(github.ref, 'refs/tags/v') && vars.SIGNPATH_PROJECT_SLUG != ''
+    needs: build
+    runs-on: windows-latest
+    permissions:
+      # SignPath reads the run's artifacts to fetch the signing input; the draft
+      # release needs write. Nothing else is granted.
+      actions: read
+      contents: write
+
+    steps:
+    - name: Checkout (with submodules)
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Derive version from tag
+      id: ver
+      run: |
+        $v = "${{ github.ref_name }}" -replace '^v',''
+        "version=$v" >> $env:GITHUB_OUTPUT
+
+    - name: Download unsigned application
+      uses: actions/download-artifact@v4
+      with:
+        name: LittleBigMouse-unsigned-win-x64
+        path: artifacts\unsigned-app
+
+    # Re-uploaded from this job because the SignPath action signs an artifact of
+    # the run it is invoked from, and needs its id.
+    - name: Upload application signing input
+      id: signing-input-app
+      uses: actions/upload-artifact@v4
+      with:
+        name: LittleBigMouse-signing-input-${{ github.run_id }}
+        path: artifacts\unsigned-app
+        retention-days: 2
+
+    - name: Sign application binaries
+      # Pinned by digest, not by tag: this is the one third-party action in the
+      # workflow, and the only step that is handed the signing token.
+      uses: signpath/github-action-submit-signing-request@b9d91eadd323de506c0c81cf0c7fe7438f3360fd # v2.2
+      with:
+        api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+        organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+        project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+        signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+        artifact-configuration-slug: ${{ vars.SIGNPATH_APPLICATION_ARTIFACT_CONFIGURATION_SLUG }}
+        github-artifact-id: ${{ steps.signing-input-app.outputs.artifact-id }}
+        wait-for-completion: true
+        # The Foundation release policy gates on a human approving the request,
+        # and the action's 10-minute default expires long before that happens.
+        wait-for-completion-timeout-in-seconds: 3600
+        output-artifact-directory: artifacts\signed-app
+
+    # A signing request can come back "successful" having signed nothing that
+    # matters, so assert on the two executables Windows will actually judge.
+    - name: Verify signed binaries
+      id: signed
+      run: |
+        $ui = Get-ChildItem artifacts\signed-app -Recurse -Filter LittleBigMouse.Ui.Avalonia.exe | Select-Object -First 1
+        if (-not $ui) { throw 'SignPath returned no signed UI executable' }
+        $dir = $ui.Directory.FullName
+        foreach ($target in @($ui.FullName, (Join-Path $dir 'LittleBigMouse.Hook.exe'))) {
+          if (-not (Test-Path -LiteralPath $target)) { throw "Missing signed binary: $target" }
+          $sig = Get-AuthenticodeSignature -LiteralPath $target
+          if ($sig.Status -ne 'Valid') { throw "$target signature: $($sig.StatusMessage)" }
+          $publisher = $sig.SignerCertificate.GetNameInfo('SimpleName', $false)
+          if ($publisher -ne 'SignPath Foundation') { throw "$target signed by '$publisher'" }
+        }
+        "dir=$dir" >> $env:GITHUB_OUTPUT
+
+    - name: Compile installer from signed binaries
+      run: |
+        & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" `
+          "/DAppVer=${{ steps.ver.outputs.version }}" `
+          "/DSourceDir=${{ steps.signed.outputs.dir }}" `
+          LittleBigMouse.Setup\LittleBigMouse.iss
+        Get-ChildItem LittleBigMouse.Setup\LittleBigMouse_*.exe | Select-Object Name, Length
+
+    - name: Upload installer signing input
+      id: signing-input-installer
+      uses: actions/upload-artifact@v4
+      with:
+        name: LittleBigMouse-installer-signing-input-${{ github.run_id }}
+        path: LittleBigMouse.Setup\LittleBigMouse_*.exe
+        retention-days: 2
+
+    - name: Sign installer
+      # Pinned by digest, not by tag: this is the one third-party action in the
+      # workflow, and the only step that is handed the signing token.
+      uses: signpath/github-action-submit-signing-request@b9d91eadd323de506c0c81cf0c7fe7438f3360fd # v2.2
+      with:
+        api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+        organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+        project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+        signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+        artifact-configuration-slug: ${{ vars.SIGNPATH_INSTALLER_ARTIFACT_CONFIGURATION_SLUG }}
+        github-artifact-id: ${{ steps.signing-input-installer.outputs.artifact-id }}
+        wait-for-completion: true
+        wait-for-completion-timeout-in-seconds: 3600
+        output-artifact-directory: artifacts\signed-installer
+
+    - name: Verify signed installer
+      run: |
+        $name = "LittleBigMouse_${{ steps.ver.outputs.version }}.exe"
+        $installer = Get-ChildItem artifacts\signed-installer -Recurse -Filter $name | Select-Object -First 1
+        if (-not $installer) { throw "SignPath returned no $name" }
+        $sig = Get-AuthenticodeSignature -LiteralPath $installer.FullName
+        if ($sig.Status -ne 'Valid') { throw "Installer signature: $($sig.StatusMessage)" }
+        $publisher = $sig.SignerCertificate.GetNameInfo('SimpleName', $false)
+        if ($publisher -ne 'SignPath Foundation') { throw "Installer signed by '$publisher'" }
+        New-Item artifacts\release -ItemType Directory -Force | Out-Null
+        Copy-Item $installer.FullName "artifacts\release\$name"
+
+    - name: Create draft release
+      uses: softprops/action-gh-release@v2
+      with:
+        draft: true
+        # Bare numeric version, as in the unsigned path above.
+        name: ${{ steps.ver.outputs.version }}
+        # The installer and nothing else: the in-app updater downloads assets[0],
+        # so any extra asset sorting ahead of it (an SBOM, a checksum file) would
+        # be handed to every existing user as if it were the setup .exe.
+        files: artifacts\release\LittleBigMouse_*.exe
+        generate_release_notes: true
+        body: |
+          💜 If Little Big Mouse is useful to you, consider [sponsoring the project](https://github.com/sponsors/mgth).
+
+          The installer and the binaries it carries are Authenticode-signed by SignPath Foundation.
+
+          Free code signing provided by [SignPath.io](https://signpath.io), certificate by [SignPath Foundation](https://signpath.org).

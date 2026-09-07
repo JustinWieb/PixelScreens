@@ -1,0 +1,310 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
+using System.Reactive.Linq;
+using System.Runtime.Serialization;
+using System.Windows.Input;
+using DynamicData;
+using DynamicData.Binding;
+using HLab.Base.Avalonia.Extensions;
+using HLab.Base.ReactiveUI;
+using HLab.Mvvm.ReactiveUI;
+using LittleBigMouse.DisplayLayout.Monitors;
+using LittleBigMouse.Plugins;
+using Avalonia.Threading;
+using LittleBigMouse.Ui.Avalonia.Main;
+using LittleBigMouse.Ui.Avalonia.Remote;
+using LittleBigMouse.Zoning;
+using ReactiveUI;
+
+namespace LittleBigMouse.Ui.Avalonia.Options;
+
+public class LbmOptionsViewModel : ViewModel<ILayoutOptions>
+{
+    public LbmOptionsViewModel(
+        IProcessesCollector collector,
+        IMainService mainService,
+        ILittleBigMouseClientService daemon)
+    {
+        // Turning a permission OFF must fix the current layout right away, not
+        // wait for the next monitor move: compact resolves the existing overlaps
+        // (AllowOverlaps) or closes the existing gaps (AllowDiscontinuity).
+        // Only a true→false TRANSITION compacts — loading a layout does not.
+        CompactWhenTurnedOff(e => e.Model.AllowOverlaps, mainService);
+        CompactWhenTurnedOff(e => e.Model.AllowDiscontinuity, mainService);
+
+        // Editing the corridor requirement reshapes the current layout right away
+        // too: compaction is what enforces the new value. Same transition rule —
+        // only a CHANGE compacts, the value seen when a layout loads does not.
+        // Throttled because the NumericUpDown fires on every 5mm step while the
+        // spinner button is held; the throttle timer completes off the UI thread,
+        // and compaction writes reactive properties the view is bound to.
+        this.WhenAnyValue(e => e.Model.MinimalEdgeOverlap)
+            .DistinctUntilChanged()
+            .Buffer(2, 1)
+            .Where(w => w.Count == 2 && !Equals(w[0], w[1]))
+            .Throttle(TimeSpan.FromMilliseconds(400))
+            .ObserveOn(RxSchedulers.MainThreadScheduler)
+            .Subscribe(_ =>
+            {
+                if (mainService.MonitorsLayout is not { } layout) return;
+                layout.Compact();
+                layout.UpdatePhysicalMonitors();
+            })
+            .DisposeWith(this);
+
+        AddExcludedProcessCommand = ReactiveCommand.Create(
+            AddExcludedProcess, 
+            this.WhenAnyValue(
+                e => e.Model,
+                
+                e => e.Pattern)
+            .Select(s =>
+            {
+                var(model, p) = s;
+                if(model == null) return false;
+                if(model.ExcludedList.Contains(p)) return false;
+                return !string.IsNullOrWhiteSpace(p);
+            }));
+
+        RemoveExcludedProcessCommand = ReactiveCommand.Create<string?>(RemoveExcludedProcess);
+
+        AddDefaultsCommand = ReactiveCommand.Create(AddDefaults);
+
+        _adjustPointerAllowed = this
+            .WhenAnyValue(e => e.Model.IsUnaryRatio, (bool r) => r)
+            .Log(this, "_adjustPointerAllowed")
+            .ToProperty(this, e => e.AdjustPointerAllowed)
+            .DisposeWith(this);
+
+        _adjustSpeedAllowed = this
+            .WhenAnyValue(e => e.Model.IsUnaryRatio, (bool r) => r)
+            .Log(this, "_adjustSpeedAllowed")
+            .ToProperty(this, e => e.AdjustSpeedAllowed)
+            .DisposeWith(this);
+
+        _selectedAlgorithm = this.WhenAnyValue(e => e.Model.Algorithm)
+            .Select(a => AlgorithmList.Find(e => e.Id == a)).ToProperty(this, nameof(SelectedAlgorithm));
+
+        _selectedBorderValues = this.WhenAnyValue(e => e.Model.BorderValues)
+            .Select(a => BorderValuesList.Find(e => e.Id == a)).ToProperty(this, nameof(SelectedBorderValues));
+
+        _selectedPriority = this.WhenAnyValue(e => e.Model.Priority)
+            .Select(a => PriorityList.Find(e => e.Id == a)).ToProperty(this, nameof(SelectedPriority));
+
+        _selectedPriorityUnhooked = this.WhenAnyValue(e => e.Model.PriorityUnhooked)
+            .Select(a => PriorityList.Find(e => e.Id == a)).ToProperty(this, nameof(SelectedPriorityUnhooked));
+
+        this.WhenAnyValue(e => e.SelectedSeenProcess)
+            .Subscribe(p => Pattern = p?.Caption??"")
+            .DisposeWith(this);
+
+        // The daemon is what registers the rescue shortcut, so it is the only one who
+        // knows whether the registration took. Reported rather than logged: a rescue
+        // that silently does not exist is worse than none, because the user only finds
+        // out at the moment they need it.
+        daemon.DaemonEventReceived += OnDaemonEvent;
+
+        // Send it as soon as it is recorded, not at the next Apply. It rides inside the
+        // layout too — that is what gets one to a standalone daemon at boot — but
+        // waiting for an Apply would mean recording a combination, seeing nothing
+        // happen, and having no way to tell "it works" from "something else owns it".
+        // Clearing the warning here makes it a fresh attempt: whatever comes back is
+        // about the combination now being asked for.
+        this.WhenAnyValue(e => e.Model.RescueShortcut)
+            // Nothing registers it off Windows, so nothing needs telling.
+            .Where(_ => RescueShortcutSupported)
+            .Where(shortcut => !string.IsNullOrWhiteSpace(shortcut))
+            .DistinctUntilChanged()
+            .Subscribe(shortcut =>
+            {
+                ShortcutWarning = "";
+                _ = daemon.SendShortcutAsync(shortcut);
+            })
+            .DisposeWith(this);
+
+        collector.SeenProcesses
+            .ToObservableChangeSet()
+            .Transform(p => new SeenProcessViewModel(p,p, this))
+            .Bind(out _seenProcesses)
+            .Subscribe()
+            .DisposeWith(this);
+    }
+
+    void OnDaemonEvent(object? sender, LittleBigMouseServiceEventArgs e)
+    {
+        if (e.Event != LittleBigMouseEvent.ShortcutUnavailable) return;
+        Dispatcher.UIThread.Post(() => ShortcutWarning =
+            $"{e.Payload} is already taken by another application — the rescue shortcut is NOT active.");
+    }
+
+    /// <summary>
+    /// Whether there is a rescue shortcut to configure. Windows only for now: the
+    /// daemon registers it with RegisterHotKey, and Wayland has no global shortcut
+    /// without a portal — reading one from evdev would mean opening the keyboard
+    /// devices, which is the keylogging surface the design avoids. Hidden rather than
+    /// shown dead, so a Linux build has nothing that looks broken.
+    /// </summary>
+    public bool RescueShortcutSupported => OperatingSystem.IsWindows();
+
+    /// <summary>Empty while the rescue shortcut is registered and working.</summary>
+    public string ShortcutWarning
+    {
+        get => _shortcutWarning;
+        private set => this.RaiseAndSetIfChanged(ref _shortcutWarning, value);
+    }
+    string _shortcutWarning = "";
+
+    void CompactWhenTurnedOff(
+        System.Linq.Expressions.Expression<Func<LbmOptionsViewModel, bool>> option,
+        IMainService mainService)
+    {
+        this.WhenAnyValue(option)
+            .DistinctUntilChanged()
+            .Buffer(2, 1)
+            .Where(w => w.Count == 2 && w[0] && !w[1])
+            .Subscribe(_ =>
+            {
+                if (mainService.MonitorsLayout is not { } layout) return;
+                layout.Compact();
+                layout.UpdatePhysicalMonitors();
+            })
+            .DisposeWith(this);
+    }
+
+    public ICommand RemoveExcludedProcessCommand { get; }
+
+    void RemoveExcludedProcess(string? process)
+    {
+        process ??= SelectedExcludedProcess;
+        if (string.IsNullOrWhiteSpace(process)) return;
+        if (Model == null) return;
+        if (Model.ExcludedList.Contains(process)) Model.ExcludedList.Remove(process);
+    }
+
+    public ICommand AddExcludedProcessCommand { get; }
+    void AddExcludedProcess()
+    {
+        var p = Pattern;
+        if (string.IsNullOrEmpty(p)) return;
+        if(Model.ExcludedList.Contains(p)) return ;
+
+        Model.ExcludedList.Add(p);
+    }
+
+    // Top up the list with any built-in default exclusions (game launchers) not already present.
+    // Restores defaults a user pruned, and surfaces newly-added ones (e.g. Xbox games, #494).
+    public ICommand AddDefaultsCommand { get; }
+    void AddDefaults()
+    {
+        if (Model == null) return;
+        foreach (var entry in ExcludedProcessDefaults.All)
+        {
+            // Separator-insensitive: don't duplicate a Windows-style entry with its Linux twin.
+            if (!ExcludedProcessDefaults.ContainsEntry(Model.ExcludedList, entry)) Model.ExcludedList.Add(entry);
+        }
+    }
+
+    /// <summary>
+    /// Allow speed adjustment when all displays have a pixel to dip ratio of 1
+    /// </summary>
+    [DataMember]
+    public bool AdjustSpeedAllowed => _adjustSpeedAllowed.Value;
+    readonly ObservableAsPropertyHelper<bool> _adjustSpeedAllowed;
+
+    /// <summary>
+    /// Allow pointer adjustment when all displays have a pixel to dip ratio of 1
+    /// </summary>
+    [DataMember]
+    public bool AdjustPointerAllowed => _adjustPointerAllowed.Value;
+    readonly ObservableAsPropertyHelper<bool> _adjustPointerAllowed;
+
+    public List<ListItem> AlgorithmList { get; } =
+    [
+        new("Strait", "Strait", "Simple and highly CPU-efficient transition."),
+        new("Cross", "Corner crossing", "In direction-friendly manner, allows traversal through corners.")
+    ];
+
+    public List<ListItem> BorderValuesList { get; } =
+    [
+        new("PerModel", "Per model", "Borders are shared by all monitors of the same make/model."),
+        new("PerMonitor", "Per monitor", "Each physical monitor keeps its own borders.")
+    ];
+
+    public List<ListItem> PriorityList { get; } =
+    [
+        new("Idle", "Idle", ""),
+        new("Below", "Below", ""),
+        new("Normal", "Normal", ""),
+        new("Above", "Above", ""),
+        new("High", "High", ""),
+        new("Realtime", "Realtime", "")
+    ];
+
+    public ListItem? SelectedAlgorithm
+    {
+        get => _selectedAlgorithm.Value;
+        set
+        {
+            if (Model == null) return;
+            Model.Algorithm = value?.Id ?? "";
+        }
+    }
+    readonly ObservableAsPropertyHelper<ListItem?> _selectedAlgorithm;
+
+    public ListItem? SelectedBorderValues
+    {
+        get => _selectedBorderValues.Value;
+        set
+        {
+            if (Model == null) return;
+            Model.BorderValues = value?.Id ?? "PerModel";
+        }
+    }
+    readonly ObservableAsPropertyHelper<ListItem?> _selectedBorderValues;
+
+    public ListItem? SelectedPriority
+    {
+        get => _selectedPriority.Value;
+        set
+        {
+            if (Model == null) return;
+            Model.Priority = value?.Id ?? "";
+        }
+    }
+    readonly ObservableAsPropertyHelper<ListItem?> _selectedPriority;
+    public ListItem? SelectedPriorityUnhooked
+    {
+        get => _selectedPriorityUnhooked.Value;
+        set
+        {
+            if (Model == null) return;
+            Model.PriorityUnhooked = value?.Id ?? "";
+        }
+    }
+    readonly ObservableAsPropertyHelper<ListItem?> _selectedPriorityUnhooked;
+
+    public ReadOnlyObservableCollection<SeenProcessViewModel> SeenProcesses => _seenProcesses;
+    readonly ReadOnlyObservableCollection<SeenProcessViewModel> _seenProcesses;
+    public string SelectedExcludedProcess
+    {
+        get => _selectedExcludedProcess;
+        set => this.RaiseAndSetIfChanged(ref _selectedExcludedProcess, value);
+    }
+    string _selectedExcludedProcess = "";
+    public string Pattern
+    {
+        get => _pattern;
+        set => this.RaiseAndSetIfChanged(ref _pattern, value);
+    }
+    string _pattern;
+
+    public SeenProcessViewModel? SelectedSeenProcess
+    {
+        get => _selectedSeenProcess;
+        set => this.RaiseAndSetIfChanged(ref _selectedSeenProcess, value);
+    }
+    SeenProcessViewModel? _selectedSeenProcess;
+
+}

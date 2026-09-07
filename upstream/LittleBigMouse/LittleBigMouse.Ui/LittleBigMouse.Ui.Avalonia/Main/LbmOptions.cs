@@ -1,0 +1,298 @@
+﻿using System;
+using System.Collections.ObjectModel;
+using System.IO;
+using System.Runtime.Serialization;
+using HLab.Base.Avalonia;
+using HLab.Base.ReactiveUI;
+using LittleBigMouse.DisplayLayout.Monitors;
+using ReactiveUI;
+
+namespace LittleBigMouse.Ui.Avalonia.Main;
+
+
+public class LbmOptions : SavableReactiveModel, ILayoutOptions
+{
+    public LbmOptions()
+    {
+        ExcludedList.CollectionChanged += (sender, args) => Saved = false;
+    }
+
+    [DataMember]
+    public bool AutoUpdate
+    {
+        get => _autoUpdate;
+        set => this.SetAndRaise(ref _autoUpdate, value);
+    }
+    bool _autoUpdate;
+
+    [DataMember]
+    public bool LoadAtStartup
+    {
+        get => _loadAtStartup;
+        set => this.SetAndRaise(ref _loadAtStartup, value);
+    }
+    bool _loadAtStartup;
+
+    [DataMember]
+    public bool StartMinimized
+    {
+        get => _startMinimized;
+        set =>  this.SetAndRaise(ref _startMinimized, value);
+    }
+    bool _startMinimized;
+    
+    [DataMember]
+    public bool StartElevated
+    {
+        get => _startElevated;
+        set =>  this.SetAndRaise(ref _startElevated, value);
+    }
+    bool _startElevated;
+
+    [DataMember]
+    public bool HideTrayIcon
+    {
+        get => _hideTrayIcon;
+        set => SetUnsavedValue(ref _hideTrayIcon, value);
+    }
+    bool _hideTrayIcon;
+
+    [DataMember]
+    public bool Elevated
+    {
+        get => _elevated;
+        set => this.SetAndRaise(ref _elevated, value);
+    }
+    bool _elevated = false;
+
+    [DataMember]
+    public bool DebugTools
+    {
+        get => _debugTools;
+        set => this.SetAndRaise(ref _debugTools, value);
+    }
+    bool _debugTools;
+
+    [DataMember]
+    public bool ExperimentalFeatures
+    {
+        get => _experimentalFeatures;
+        set => SetUnsavedValue(ref _experimentalFeatures, value);
+    }
+    bool _experimentalFeatures;
+
+    [DataMember]
+    public bool VcpControl
+    {
+        get => _vcpControl;
+        set => this.SetAndRaise(ref _vcpControl, value);
+    }
+    bool _vcpControl;
+
+    [DataMember]
+    public bool ShowMonitorActionWarning
+    {
+        get => _showMonitorActionWarning;
+        set => this.SetAndRaise(ref _showMonitorActionWarning, value);
+    }
+    bool _showMonitorActionWarning = true;
+
+    [DataMember]
+    public string Priority 
+    {
+        get => _priority;
+        set => SetUnsavedValue(ref _priority, value);
+    }
+    string _priority = "Normal";
+
+    [DataMember]
+    public string PriorityUnhooked
+    {
+        get => _priorityUnhooked;
+        set => SetUnsavedValue(ref _priorityUnhooked, value);
+    }
+    string _priorityUnhooked = "Below";
+
+    [DataMember]
+    public bool Enabled
+    {
+        get => _enabled;
+        set => this.SetAndRaise(ref _enabled, value);
+    }
+    bool _enabled;
+
+    [DataMember]
+    public bool LoopAllowed => true;
+
+    [DataMember]
+    public bool LoopX
+    {
+        get => LoopAllowed && _loopX;
+        set => SetUnsavedValue(ref _loopX, value);
+    }
+    bool _loopX;
+
+    [DataMember]
+    public bool LoopY
+    {
+        get => LoopAllowed && _loopY;
+        set => SetUnsavedValue(ref _loopY, value);
+    }
+    bool _loopY;
+
+    [DataMember]
+    public bool IsUnaryRatio
+    {
+        get => _isUnaryRatio;
+        set => this.RaiseAndSetIfChanged(ref _isUnaryRatio, value);
+    }
+    bool _isUnaryRatio;
+
+    [DataMember]
+    public bool AdjustPointer
+    {
+        get => _adjustPointer;
+        set => SetUnsavedValue(ref _adjustPointer, value);
+    }
+    bool _adjustPointer;
+
+    [DataMember]
+    public bool AdjustSpeed
+    {
+        get => _adjustSpeed;
+        set => SetUnsavedValue(ref _adjustSpeed, value);
+    }
+    bool _adjustSpeed;
+
+    [DataMember]
+    public bool HomeCinema
+    {
+        get => _homeCinema;
+        set => SetUnsavedValue(ref _homeCinema, value);
+    }
+    bool _homeCinema;
+
+    [DataMember]
+    public double MaxTravelDistance
+    {
+        get => _maxTravelDistance;
+        set => SetUnsavedValue(ref _maxTravelDistance, value);
+    }
+    double _maxTravelDistance = 200.0;
+
+    [DataMember]
+    public double FreelookCheckInterval
+    {
+        get => _freelookCheckInterval;
+        set => SetUnsavedValue(ref _freelookCheckInterval, value);
+    }
+    double _freelookCheckInterval = 100.0;
+
+    [DataMember]
+    public bool FreelookEnabled
+    {
+        get => _freelookEnabled;
+        set => SetUnsavedValue(ref _freelookEnabled, value);
+    }
+    bool _freelookEnabled = true;
+
+    [DataMember]
+    public double MinimalMaxTravelDistance
+    {
+        get => _minimalMaxTravelDistance;
+        set => this.SetAndRaise(ref _minimalMaxTravelDistance, value);
+    }
+    double _minimalMaxTravelDistance = 0.0;
+
+    [DataMember]
+    public bool Pinned
+    {
+        get => _pinned;
+        set => this.SetAndRaise(ref _pinned, value);
+    }
+    bool _pinned;
+
+    /// <summary>
+    /// Minimal crossing corridor compaction guarantees between two touching monitors, in mm
+    /// of display surface shared along the contact edge (bezels excluded). 0 = bare contact,
+    /// a corner counts. Independent of the crossing algorithm: layout editing and mouse
+    /// behaviour are separate domains.
+    /// </summary>
+    [DataMember]
+    public double MinimalEdgeOverlap
+    {
+        get => _minimalEdgeOverlap;
+        set => SetUnsavedValue(ref _minimalEdgeOverlap, value);
+    }
+    double _minimalEdgeOverlap = 20.0;
+
+    /// <summary>
+    /// allow monitors to overlap, may be useful for overlapped borders
+    /// </summary>
+    [DataMember]
+    public bool AllowOverlaps
+    {
+        get => _allowOverlaps;
+        set => SetUnsavedValue(ref _allowOverlaps, value);
+    }
+    bool _allowOverlaps;
+
+    /// <summary>
+    /// allow monitors to be placed with a gap between them
+    /// </summary>
+    [DataMember]
+    public bool AllowDiscontinuity
+    {
+        get => _allowDiscontinuity;
+        set => SetUnsavedValue(ref _allowDiscontinuity, value);
+    }
+    bool _allowDiscontinuity;
+
+    /// <summary>
+    /// algorithm to be used for mouse movements
+    /// - Strait
+    /// - Cross
+    /// <para>
+    /// The wire values, and the only ones the daemon understands — see
+    /// <see cref="LittleBigMouse.DisplayLayout.Monitors.ILayoutOptions.Algorithm"/> and
+    /// <c>wire-contract/README.md</c>. Produced by <c>LbmOptionsViewModel.AlgorithmList</c>.
+    /// </para>
+    /// </summary>
+    [DataMember]
+    public string Algorithm
+    {
+        get => _algorithm;
+        set => SetUnsavedValue(ref _algorithm, value);
+    }
+    string _algorithm = "Strait";
+
+    [DataMember]
+    public string BorderValues
+    {
+        get => _borderValues;
+        set => SetUnsavedValue(ref _borderValues, value);
+    }
+    string _borderValues = "PerModel";
+
+    [DataMember]
+    public string RescueShortcut
+    {
+        get => _rescueShortcut;
+        set => SetUnsavedValue(ref _rescueShortcut, value);
+    }
+    string _rescueShortcut = "Ctrl+Alt+Shift+M";
+
+    public ObservableCollection<string> ExcludedList { get; } = new();
+
+    public string GetConfigPath(string layoutId, bool create)
+    {
+        var path = Path.Combine(LittleBigMouse.Plugins.LbmPaths.DataDir, layoutId);
+
+        if (create) Directory.CreateDirectory(path);
+
+        return path;
+    }
+
+
+
+}

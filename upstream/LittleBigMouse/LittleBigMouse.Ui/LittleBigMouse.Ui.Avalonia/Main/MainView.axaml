@@ -1,0 +1,69 @@
+﻿<UserControl
+    x:Class="LittleBigMouse.Ui.Avalonia.Main.MainView"
+        xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:annotations="clr-namespace:HLab.Mvvm.Annotations;assembly=HLab.Mvvm.Annotations"
+        xmlns:mvvm="clr-namespace:HLab.Mvvm.Avalonia;assembly=HLab.Mvvm.Avalonia"
+        xmlns:plugins="clr-namespace:LittleBigMouse.Plugins;assembly=LittleBigMouse.Plugins"
+        xmlns:main="clr-namespace:LittleBigMouse.Ui.Avalonia.Main"
+    mc:Ignorable="d"
+    x:DataType="main:MainViewModel"
+>
+        <!--Foreground="{DynamicResource HLab.Brushes.Foreground}"-->
+	<Design.DataContext>
+		<main:MainViewModelDesign />
+	</Design.DataContext>
+
+	<Control.Resources>
+
+	</Control.Resources>
+
+	<!-- DockPanel: docked bars are measured first so the center view can never
+	     push the bottom control bar out of the window (a star Grid row would
+	     grow to its content's min height and overflow). -->
+	<DockPanel>
+        <DockPanel.Background>
+            <LinearGradientBrush StartPoint="0,0.4" EndPoint="1,0.6">
+                <GradientStop Offset="0" Color="{DynamicResource ThemeBackgroundColor}"/>
+                <GradientStop Offset="0.5" Color="#80808080"/>
+                <GradientStop Offset="0.53" Color="#80606060"/>
+                <GradientStop Offset="1" Color="#40000000"/>
+            </LinearGradientBrush>
+        </DockPanel.Background>
+
+        <main:PluginsControlsView DockPanel.Dock="Top"/>
+
+        <!--Controls for the layout.
+            ZIndex keeps the bar above the presenter view, whose monitor frames
+            can overflow the SplitView cell (the fill child of a DockPanel is
+            declared last, hence painted on top by default).-->
+		<Border
+			DockPanel.Dock="Bottom"
+			ZIndex="1"
+			Classes="Toolbar Bottom">
+
+			<mvvm:ViewLocator
+				ViewClass="{x:Type plugins:IMonitorsLayoutControlViewClass}"
+				ViewMode="{x:Type annotations:DefaultViewMode}"
+				Model="{Binding MainService.MonitorsLayout}"
+					/>
+		</Border>
+
+		<SplitView OpenPaneLength="440" IsPaneOpen="{Binding OptionsIsVisible, Mode = TwoWay}"  PaneBackground="Transparent" ClipToBounds="True" >
+			<SplitView.Pane>
+		        <mvvm:ViewLocator Model="{Binding Options}" />
+			</SplitView.Pane>
+
+            <!--Graphical view for the layout-->
+		    <mvvm:ViewLocator
+                  ViewClass="{x:Type plugins:IMonitorsLayoutPresenterViewClass}"
+                  ViewMode="{Binding PresenterViewMode}"
+
+                  Model="{Binding MainService.MonitorsLayout}"
+            />
+		</SplitView>
+	</DockPanel>
+
+</UserControl>
