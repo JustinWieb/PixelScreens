@@ -8,7 +8,7 @@ namespace Pixelscreens.Controls;
 
 /// <summary>
 /// Thumbnail of a display profile: each screen as a box at its pixel position. Screens whose monitor is
-/// plugged in are tinted green, missing ones red; the primary screen gets a heavier outline.
+/// plugged in get a green outline, missing ones red; the primary screen gets a heavier outline.
 /// </summary>
 public sealed class ProfilePreview : Control
 {
@@ -29,11 +29,10 @@ public sealed class ProfilePreview : Control
     private static readonly IBrush Back = new SolidColorBrush(Color.Parse("#0A0A0A"));
     private static readonly IBrush Frame = new SolidColorBrush(Color.Parse("#303030"));
 
+    private static readonly IBrush TextBrush = new SolidColorBrush(Color.Parse("#D0D0D0"));
     private static readonly IBrush Fill = new SolidColorBrush(Color.Parse("#181818"));
     private static readonly IBrush Line = new SolidColorBrush(Color.Parse("#5A5A5A"));
-    private static readonly IBrush FillOk = new SolidColorBrush(Color.Parse("#16271C"));
     private static readonly IBrush LineOk = new SolidColorBrush(Color.Parse("#8FE0A6"));
-    private static readonly IBrush FillBad = new SolidColorBrush(Color.Parse("#2C1717"));
     private static readonly IBrush LineBad = new SolidColorBrush(Color.Parse("#FF8C8C"));
 
     static ProfilePreview()
@@ -63,15 +62,16 @@ public sealed class ProfilePreview : Control
         {
             var r = new Rect(Math.Round(ox + s.X * scale) + 0.5, Math.Round(oy + s.Y * scale) + 0.5,
                 Math.Max(2, Math.Round(s.W * scale) - 2), Math.Max(2, Math.Round(s.H * scale) - 2));
-            var (fill, line) = s.State switch
+            // Only the outline carries state; the fill stays neutral.
+            var line = s.State switch
             {
-                ScreenState.Present => (FillOk, LineOk),
-                ScreenState.Missing => (FillBad, LineBad),
-                _ => (Fill, Line),
+                ScreenState.Present => LineOk,
+                ScreenState.Missing => LineBad,
+                _ => Line,
             };
-            ctx.FillRectangle(fill, r);
+            ctx.FillRectangle(Fill, r);
             ctx.DrawRectangle(new Pen(line, s.IsPrimary ? 2 : 1), r);
-            if (ShowLabels) DrawLabel(ctx, r, s, line);
+            if (ShowLabels) DrawLabel(ctx, r, s, TextBrush);
         }
     }
 

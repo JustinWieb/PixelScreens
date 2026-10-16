@@ -45,8 +45,8 @@
         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,16">
           <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top" Margin="16,0,0,0">
             <TextBox Width="200" Watermark="new profile name" Text="{Binding NewProfileName}" IsEnabled="{Binding !Busy}" />
-            <Button Classes="primary" Content="Save current" Command="{Binding SaveCurrentCommand}" IsEnabled="{Binding !Busy}" />
-            <Button Content="Refresh" Command="{Binding RefreshCommand}" IsEnabled="{Binding !Busy}" />
+            <Button Classes="px primary" Content="SAVE CURRENT" Command="{Binding SaveCurrentCommand}" IsEnabled="{Binding !Busy}" />
+            <Button Classes="px" Content="REFRESH" Command="{Binding RefreshCommand}" IsEnabled="{Binding !Busy}" />
           </StackPanel>
           <StackPanel>
             <TextBlock Classes="pixel" Text="DISPLAY PROFILES" />
@@ -56,10 +56,11 @@
         <Border DockPanel.Dock="Top" Classes="panel" Padding="0" Margin="0,0,0,12">
           <Border Classes="row">
             <DockPanel>
-              <Border DockPanel.Dock="Right" Classes="chip" VerticalAlignment="Center">
-                <TextBlock Classes="pixel" FontSize="7" Text="NOW" Foreground="{StaticResource Px.Brush.Accent}" />
-              </Border>
-              <px:ProfilePreview DockPanel.Dock="Left" Screens="{Binding CurrentScreens}" ShowLabels="True" Width="320" Height="170" Margin="0,0,16,0" VerticalAlignment="Center" />
+              <Button DockPanel.Dock="Right" Classes="px primary" Content="EDIT LAYOUT" VerticalAlignment="Center" Command="{Binding OpenLayoutCommand}" />
+              <Button DockPanel.Dock="Left" Classes="bare" Margin="0,0,16,0" VerticalAlignment="Center"
+                      Command="{Binding OpenLayoutCommand}" ToolTip.Tip="Click to edit this layout">
+                <px:ProfilePreview Screens="{Binding CurrentScreens}" ShowLabels="True" Width="320" Height="170" />
+              </Button>
               <StackPanel VerticalAlignment="Center" Spacing="2">
                 <TextBlock Classes="dim" Text="CURRENT SETUP" FontSize="11" />
                 <TextBlock Text="{Binding CurrentTitle}" />
@@ -77,19 +78,24 @@
                 <DataTemplate x:DataType="vm:ProfileRow">
                   <Border Classes="row">
                     <DockPanel>
-                      <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <Border Classes="chip" IsVisible="{Binding HasBadge}" VerticalAlignment="Center">
-                          <TextBlock Classes="pixel" FontSize="7" Text="{Binding Badge}" Foreground="{StaticResource Px.Brush.Accent}" />
-                        </Border>
-                        <px:HotkeyBox Gesture="{Binding Hotkey}" ToolTip.Tip="Click, then press a key combination. Backspace clears." />
-                        <Button Content="{Binding StartupLabel}" Classes.primary="{Binding IsStartup}" Command="{Binding ToggleStartupCommand}"
+                      <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <px:HotkeyBox Gesture="{Binding Hotkey}" Width="150" VerticalAlignment="Center" ToolTip.Tip="Click, then press a key combination. Backspace clears." />
+                        <Button Classes="px" Classes.on="{Binding IsStartup}" Content="{Binding StartupLabel}" Width="120" Command="{Binding ToggleStartupCommand}"
                                 ToolTip.Tip="Apply this profile every time PixelScreens starts (including at sign-in)." />
-                        <Button Content="Apply" Command="{Binding ApplyCommand}" IsVisible="{Binding CanApply}" />
-                        <Button Content="Delete" Command="{Binding DeleteCommand}" />
+                        <Button Classes="px primary" Content="APPLY" Width="96" Command="{Binding ApplyCommand}" />
+                        <Button Classes="px danger" Content="DELETE" Width="96" Command="{Binding DeleteCommand}" />
                       </StackPanel>
-                      <px:ProfilePreview DockPanel.Dock="Left" Screens="{Binding Screens}" IsUsable="{Binding IsUsable}" Margin="0,0,16,0" VerticalAlignment="Center" />
-                      <StackPanel VerticalAlignment="Center" Spacing="2">
-                        <TextBlock Text="{Binding Name}" />
+                      <Button DockPanel.Dock="Left" Classes="bare" Margin="0,0,16,0" VerticalAlignment="Center"
+                              Command="{Binding OpenCommand}" ToolTip.Tip="{Binding PreviewTip}">
+                        <px:ProfilePreview Screens="{Binding Screens}" IsUsable="{Binding IsUsable}" />
+                      </Button>
+                      <StackPanel VerticalAlignment="Center" Spacing="3">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                          <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                          <Border Classes="chip" IsVisible="{Binding HasBadge}" VerticalAlignment="Center">
+                            <TextBlock Classes="pixel" FontSize="7" Text="{Binding Badge}" Foreground="{StaticResource Px.Brush.Accent}" />
+                          </Border>
+                        </StackPanel>
                         <TextBlock Classes="muted" Text="{Binding Summary}" TextTrimming="CharacterEllipsis" />
                         <TextBlock Classes="dim" Text="{Binding Changes}" IsVisible="{Binding HasChanges}" TextWrapping="Wrap" />
                         <TextBlock Classes="dim" Text="{Binding Problem}" Foreground="{StaticResource Px.Brush.Bad}" IsVisible="{Binding HasProblem}" TextWrapping="Wrap" />
@@ -110,8 +116,8 @@
         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,16">
           <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top" Margin="16,0,0,0">
             <TextBox Width="200" Watermark="new audio profile name" Text="{Binding NewProfileName}" IsEnabled="{Binding !Busy}" />
-            <Button Classes="primary" Content="Save current" Command="{Binding SaveCurrentCommand}" IsEnabled="{Binding !Busy}" />
-            <Button Content="Refresh" Command="{Binding RefreshCommand}" IsEnabled="{Binding !Busy}" />
+            <Button Classes="px primary" Content="SAVE CURRENT" Command="{Binding SaveCurrentCommand}" IsEnabled="{Binding !Busy}" />
+            <Button Classes="px" Content="REFRESH" Command="{Binding RefreshCommand}" IsEnabled="{Binding !Busy}" />
           </StackPanel>
           <StackPanel>
             <TextBlock Classes="pixel" Text="AUDIO PROFILES" />
@@ -130,8 +136,8 @@
                           <TextBlock Classes="pixel" FontSize="7" Text="{Binding Badge}" Foreground="{StaticResource Px.Brush.Accent}" />
                         </Border>
                         <px:HotkeyBox Gesture="{Binding Hotkey}" ToolTip.Tip="Click, then press a key combination. Backspace clears." />
-                        <Button Content="Switch" Command="{Binding ApplyCommand}" IsVisible="{Binding !IsActive}" />
-                        <Button Content="Delete" Command="{Binding DeleteCommand}" />
+                        <Button Classes="px primary" Content="SWITCH" Width="96" Command="{Binding ApplyCommand}" IsEnabled="{Binding !IsActive}" />
+                        <Button Classes="px danger" Content="DELETE" Width="96" Command="{Binding DeleteCommand}" />
                       </StackPanel>
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="{Binding Name}" />
@@ -152,11 +158,13 @@
       <DockPanel DataContext="{Binding Layout}" x:DataType="vm:LayoutViewModel">
         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,16">
           <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top" Margin="16,0,0,0">
-            <Button Content="Show all" Command="{Binding ShowAllCommand}" IsVisible="{Binding IsFocused}" />
-            <Button Content="Rescan" Command="{Binding RefreshCommand}" IsEnabled="{Binding !Busy}" />
-            <Button Content="Apply now" Command="{Binding SaveCommand}" IsEnabled="{Binding Dirty}" ToolTip.Tip="Edits save on their own a moment after you stop. This forces it immediately." />
-            <Button Classes="primary" Content="Enable" Command="{Binding StartCommand}" IsVisible="{Binding !IsRunning}" IsEnabled="{Binding !Busy}" />
-            <Button Content="Disable" Command="{Binding StopCommand}" IsVisible="{Binding IsRunning}" IsEnabled="{Binding !Busy}" />
+            <Button Classes="px" Content="SHOW ALL" Command="{Binding ShowAllCommand}" IsVisible="{Binding IsFocused}" />
+            <Button Classes="px" Content="MATCH WINDOWS" Command="{Binding MatchWindowsCommand}" IsEnabled="{Binding !Busy}"
+                    ToolTip.Tip="Rebuild the physical layout from the Windows arrangement: same neighbours, real sizes. Fine-tune by dragging afterwards." />
+            <Button Classes="px" Content="RESCAN" Command="{Binding RefreshCommand}" IsEnabled="{Binding !Busy}" />
+            <Button Classes="px" Content="SAVE" Command="{Binding SaveCommand}" IsEnabled="{Binding Dirty}" ToolTip.Tip="Edits save on their own a moment after you stop. This forces it immediately." />
+            <Button Classes="px primary" Content="ENABLE" Command="{Binding StartCommand}" IsVisible="{Binding !IsRunning}" IsEnabled="{Binding !Busy}" />
+            <Button Classes="px on" Content="ENABLED" Command="{Binding StopCommand}" IsVisible="{Binding IsRunning}" IsEnabled="{Binding !Busy}" ToolTip.Tip="Cursor engine is on. Click to turn it off." />
           </StackPanel>
           <StackPanel>
             <TextBlock Classes="pixel" Text="PHYSICAL LAYOUT" />
@@ -221,6 +229,11 @@
                 <TextBlock Classes="dim" TextWrapping="Wrap" Text="Changes save on their own a moment after you stop editing, to this monitor's saved profile, and go live if the engine is on." />
               </StackPanel>
               </Panel>
+              <StackPanel Spacing="6" IsVisible="{Binding HasScale}">
+                <TextBlock Classes="pixel" FontSize="7" Text="SCALE" />
+                <ComboBox ItemsSource="{Binding ScaleOptions}" SelectedItem="{Binding SelectedScale}" HorizontalAlignment="Stretch" />
+                <TextBlock Classes="dim" TextWrapping="Wrap" Text="Windows text and app size on this monitor. Applies right away." />
+              </StackPanel>
             </StackPanel>
           </Border>
         </Grid>

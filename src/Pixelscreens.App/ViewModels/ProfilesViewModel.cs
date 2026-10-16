@@ -19,6 +19,12 @@ public sealed partial class ProfilesViewModel : ObservableObject
         _hotkeysChanged = hotkeysChanged;
     }
 
+    /// <summary>Raised when the user clicks the live arrangement to edit it on the Layout tab.</summary>
+    public event Action? OpenLayoutRequested;
+
+    [RelayCommand]
+    private void OpenLayout() => OpenLayoutRequested?.Invoke();
+
     /// <summary>Raised after a profile apply actually changed the Windows arrangement.</summary>
     public event Action? DisplaysChanged;
 
@@ -323,7 +329,7 @@ public sealed partial class ProfileRow : ObservableObject
     public bool IsActive { get; }
     public bool IsUsable { get; }
     public bool IsStartup { get; }
-    public string StartupLabel => IsStartup ? "Startup ✓" : "Use at startup";
+    public string StartupLabel => IsStartup ? "STARTUP ON" : "STARTUP";
 
     public string Badge => IsActive ? "ACTIVE" : Missing.Count > 0 ? "MISSING DISPLAY" : IsUsable ? "" : "UNAVAILABLE";
     public bool HasBadge => Badge.Length > 0;
@@ -337,4 +343,10 @@ public sealed partial class ProfileRow : ObservableObject
 
     [RelayCommand]
     private Task ToggleStartupAsync() => _owner.ToggleStartupAsync(this);
+
+    /// <summary>A profile is a layout: clicking the one on screen opens it on the Layout tab.</summary>
+    [RelayCommand]
+    private void Open() { if (IsActive) _owner.OpenLayoutCommand.Execute(null); }
+
+    public string PreviewTip => IsActive ? "Click to edit this layout" : "Apply this profile to edit its layout";
 }

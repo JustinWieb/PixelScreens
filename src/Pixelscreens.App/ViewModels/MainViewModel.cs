@@ -28,6 +28,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         _hotkeys.Triggered += action => Dispatcher.UIThread.Post(async () => await OnHotkeyAsync(action));
 
+        Profiles.OpenLayoutRequested += () => SelectedTab = 2;
         Profiles.DisplaysChanged += () => Dispatcher.UIThread.Post(async () => await Layout.RefreshAsync());
         Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
     }

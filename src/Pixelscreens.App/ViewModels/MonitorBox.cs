@@ -11,6 +11,8 @@ public sealed partial class MonitorBox : ObservableObject
     public string Id { get; init; } = "";
     public string Label { get; init; } = "";
     public string Detail { get; init; } = "";
+    /// <summary>Windows source name (\\.\DISPLAY1), used for per-monitor scaling.</summary>
+    public string GdiName { get; init; } = "";
     public bool IsPrimary { get; init; }
     public int PixelWidth { get; init; }
     public int PixelHeight { get; init; }

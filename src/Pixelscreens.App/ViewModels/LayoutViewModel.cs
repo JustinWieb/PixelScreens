@@ -3,6 +3,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LittleBigMouse.DisplayLayout.Monitors;
+using LittleBigMouse.DisplayLayout.Monitors.Extensions;
 using Pixelscreens.Services;
 
 namespace Pixelscreens.ViewModels;
@@ -77,6 +78,76 @@ public sealed partial class LayoutViewModel : ObservableObject
     {
         foreach (var m in Monitors) m.IsSelected = m == box;
         Selected = box;
+        LoadScale(box);
+    }
+
+    // Windows scaling for the selected monitor.
+    public System.Collections.ObjectModel.ObservableCollection<string> ScaleOptions { get; } = new();
+    [ObservableProperty] private string? _selectedScale;
+    [ObservableProperty] private bool _hasScale;
+    private bool _loadingScale;
+
+    private static string ScaleText(uint pct, uint recommended) => pct == recommended ? $"{pct}% (recommended)" : $"{pct}%";
+
+    private void LoadScale(MonitorBox? box)
+    {
+        _loadingScale = true;
+        try
+        {
+            ScaleOptions.Clear();
+            var info = box is null || box.GdiName.Length == 0 ? null : ScalingService.Get(box.GdiName);
+            HasScale = info is not null;
+            if (info is null) { SelectedScale = null; return; }
+            foreach (var pct in info.Allowed) ScaleOptions.Add(ScaleText(pct, info.Recommended));
+            SelectedScale = ScaleText(info.Current, info.Recommended);
+        }
+        catch
+        {
+            HasScale = false;
+        }
+        finally
+        {
+            _loadingScale = false;
+        }
+    }
+
+    partial void OnSelectedScaleChanged(string? value)
+    {
+        if (_loadingScale || value is null || Selected is not { } box) return;
+        if (!uint.TryParse(value.Split('%')[0], out var pct)) return;
+        var ok = ScalingService.Set(box.GdiName, pct);
+        Status = ok ? $"{box.Label} scaling set to {pct}%" : $"Windows refused {pct}% scaling for {box.Label}";
+        if (!ok) LoadScale(box);
+    }
+
+    /// <summary>
+    /// Re-place every monitor from the Windows arrangement (who sits left of whom, who is above), using real sizes.
+    /// Use when the physical layout drifted from what Windows has, e.g. after a profile switch or a new monitor.
+    /// </summary>
+    [RelayCommand]
+    private async Task MatchWindowsAsync()
+    {
+        if (_engine.Layout is not { } layout) return;
+        Busy = true;
+        try
+        {
+            await Task.Run(() =>
+            {
+                layout.SetLocationsFromSystemConfiguration(placeAll: true);
+                _engine.Save();
+            });
+        }
+        catch (Exception ex)
+        {
+            Status = $"match failed: {Describe(ex)}";
+            return;
+        }
+        finally
+        {
+            Busy = false;
+        }
+        await RefreshAsync();
+        Status = "physical layout rebuilt from the Windows arrangement" + (IsRunning ? " · live" : "");
     }
 
     [RelayCommand]
@@ -98,6 +169,7 @@ public sealed partial class LayoutViewModel : ObservableObject
                 {
                     Id = m.Id,
                     Label = Pick(m.Model.PnpDeviceName, src?.DisplayName, m.Model.PnpCode, m.Id).ToUpperInvariant(),
+                    GdiName = src?.DisplayName ?? "",
                     Detail = src is null ? "" : $"{src.InPixel.Width:0}x{src.InPixel.Height:0} · {src.EffectiveDpi.X:0} dpi · {src.DisplayName?.Replace(@"\\.\", "")}",
                     IsPrimary = src?.Primary ?? false,
                     XMm = proj.X,
@@ -121,7 +193,8 @@ public sealed partial class LayoutViewModel : ObservableObject
                 Monitors.Add(box);
                 _byId[m.Id] = m;
             }
-            Select(Monitors.FirstOrDefault(b => b.IsPrimary) ?? Monitors.FirstOrDefault());
+            var keep = Selected?.Id;
+            Select(Monitors.FirstOrDefault(b => b.Id == keep) ?? Monitors.FirstOrDefault(b => b.IsPrimary) ?? Monitors.FirstOrDefault());
             Dirty = false;
             EngineOk = true;
             IsRunning = _engine.IsRunning;
