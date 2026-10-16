@@ -19,11 +19,59 @@ public sealed partial class ProfilesViewModel : ObservableObject
         _hotkeysChanged = hotkeysChanged;
     }
 
-    /// <summary>Raised when the user clicks the live arrangement to edit it on the Layout tab.</summary>
+    /// <summary>Raised when a profile should be shown on the Layout tab for editing.</summary>
     public event Action? OpenLayoutRequested;
 
+    /// <summary>The profile open on the Layout tab. Null means the live arrangement isn't saved as a profile.</summary>
+    [ObservableProperty] private ProfileRow? _editing;
+    [ObservableProperty] private string _editName = "";
+
+    public bool HasEditing => Editing is not null;
+    /// <summary>The profile being edited isn't on screen, so only its settings can change until it is applied.</summary>
+    public bool EditingOffline => Editing is { IsActive: false };
+    public bool EditingLive => !EditingOffline;
+    public string EditingTitle => Editing?.Name ?? "Unsaved layout";
+
+    partial void OnEditingChanged(ProfileRow? value)
+    {
+        EditName = value?.Name ?? "";
+        OnPropertyChanged(nameof(HasEditing));
+        OnPropertyChanged(nameof(EditingOffline));
+        OnPropertyChanged(nameof(EditingLive));
+        OnPropertyChanged(nameof(EditingTitle));
+    }
+
+    /// <summary>Open the profile that is on screen (or the unsaved live layout).</summary>
     [RelayCommand]
-    private void OpenLayout() => OpenLayoutRequested?.Invoke();
+    private void OpenLayout() => BeginEdit(Profiles.FirstOrDefault(r => r.IsActive));
+
+    public void EditActiveIfNone()
+    {
+        if (Editing is null) Editing = Profiles.FirstOrDefault(r => r.IsActive);
+    }
+
+    internal void BeginEdit(ProfileRow? row)
+    {
+        Editing = row;
+        OpenLayoutRequested?.Invoke();
+    }
+
+    [RelayCommand]
+    private async Task RenameAsync()
+    {
+        if (Editing is not { } row) return;
+        var name = EditName.Trim();
+        if (name.Length == 0 || name == row.Name) return;
+        var ok = await _service.RenameAsync(row.Item, name);
+        Status = ok ? $"renamed to \"{name}\"" : $"could not rename (is \"{name}\" already used?)";
+        await ReloadAsync(keepStatus: true);
+    }
+
+    [RelayCommand]
+    private async Task ApplyEditingAsync()
+    {
+        if (Editing is { CanApply: true } row) await ApplyAsync(row);
+    }
 
     /// <summary>Raised after a profile apply actually changed the Windows arrangement.</summary>
     public event Action? DisplaysChanged;
@@ -80,6 +128,7 @@ public sealed partial class ProfilesViewModel : ObservableObject
             }
 
             var match = Profiles.FirstOrDefault(r => r.IsActive);
+            if (Editing is { } was) Editing = Profiles.FirstOrDefault(r => r.Uuid == was.Uuid);
             CurrentScreens = currentScreens;
             CurrentIsSaved = match is not null;
             CurrentTitle = match is not null ? match.Name : "Unsaved layout";
@@ -153,6 +202,7 @@ public sealed partial class ProfilesViewModel : ObservableObject
             var saved = await _service.SaveCurrentAsync(name);
             Status = saved is null ? "save failed: engine could not capture the current layout" : $"saved \"{saved.Name}\"";
             NewProfileName = "";
+            _editNewUuid = saved?.UUID;
         }
         catch (Exception ex)
         {
@@ -163,7 +213,11 @@ public sealed partial class ProfilesViewModel : ObservableObject
             Busy = false;
         }
         await ReloadAsync(keepStatus: true);
+        if (_editNewUuid is { } id && Editing is null) Editing = Profiles.FirstOrDefault(r => r.Uuid == id);
+        _editNewUuid = null;
     }
+
+    private string? _editNewUuid;
 
     internal async Task ApplyAsync(ProfileRow row)
     {
@@ -209,6 +263,7 @@ public sealed partial class ProfilesViewModel : ObservableObject
             var ok = await _service.DeleteAsync(row.Item);
             Status = ok ? $"deleted \"{row.Name}\"" : $"could not delete \"{row.Name}\"";
             if (ok) { _settings.Hotkeys.Remove($"profile:{row.Uuid}"); _settings.Save(); _hotkeysChanged(); }
+            if (ok && Editing?.Uuid == row.Uuid) Editing = null;
         }
         catch (Exception ex)
         {
@@ -381,9 +436,7 @@ public sealed partial class ProfileRow : ObservableObject
     [RelayCommand]
     private Task ToggleStartupAsync() => _owner.ToggleStartupAsync(this);
 
-    /// <summary>A profile is a layout: clicking the one on screen opens it on the Layout tab.</summary>
+    /// <summary>A profile is a layout: Edit opens it on the Layout tab with its settings.</summary>
     [RelayCommand]
-    private void Open() { if (IsActive) _owner.OpenLayoutCommand.Execute(null); }
-
-    public string PreviewTip => IsActive ? "Click to edit this layout" : "Apply this profile to edit its layout";
+    private void Edit() => _owner.BeginEdit(this);
 }

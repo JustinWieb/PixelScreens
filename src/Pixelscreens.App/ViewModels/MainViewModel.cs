@@ -91,6 +91,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(ShowAudio));
         OnPropertyChanged(nameof(ShowLayout));
         OnPropertyChanged(nameof(ShowSettings));
+        if (value == 2) Profiles.EditActiveIfNone();
         RaiseFooter();
     }
 

@@ -70,7 +70,7 @@ public sealed class ProfilePreview : Control
                 _ => Line,
             };
             ctx.FillRectangle(Fill, r);
-            ctx.DrawRectangle(new Pen(line, s.IsPrimary ? 2 : 1), r);
+            ctx.DrawRectangle(new Pen(line, 1), r); // hairline for every screen; colour carries the state
             if (ShowLabels) DrawLabel(ctx, r, s, TextBrush);
         }
     }

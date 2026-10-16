@@ -73,7 +73,7 @@
                 <DataTemplate x:DataType="vm:ProfileRow">
                   <Border Classes="row">
                     <Grid ColumnDefinitions="Auto,*,Auto">
-                      <Button Classes="bare" VerticalAlignment="Center" Command="{Binding OpenCommand}" ToolTip.Tip="{Binding PreviewTip}">
+                      <Button Classes="bare" VerticalAlignment="Center" Command="{Binding EditCommand}" ToolTip.Tip="Edit">
                         <px:ProfilePreview Screens="{Binding Screens}" IsUsable="{Binding IsUsable}" Width="120" Height="68" />
                       </Button>
                       <StackPanel Grid.Column="1" Margin="16,0" VerticalAlignment="Center" Spacing="4" ClipToBounds="True">
@@ -82,11 +82,8 @@
                                    IsVisible="{Binding HasNote}" ToolTip.Tip="{Binding NoteDetail}" />
                       </StackPanel>
                       <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <px:HotkeyBox Gesture="{Binding Hotkey}" Width="96" VerticalAlignment="Center" ToolTip.Tip="Hotkey: click, then press keys. Backspace clears." />
-                        <Button Classes="px" Classes.on="{Binding IsStartup}" Content="STARTUP" Width="104" Command="{Binding ToggleStartupCommand}"
-                                ToolTip.Tip="{Binding StartupTip}" />
                         <Button Classes="px primary" Content="APPLY" Width="88" Command="{Binding ApplyCommand}" />
-                        <Button Classes="px danger" Content="DELETE" Width="88" Command="{Binding DeleteCommand}" />
+                        <Button Classes="px" Content="EDIT" Width="88" Command="{Binding EditCommand}" />
                       </StackPanel>
                     </Grid>
                   </Border>
@@ -143,7 +140,44 @@
 
       <!-- LAYOUT -->
       <Panel IsVisible="{Binding ShowLayout}">
-      <DockPanel DataContext="{Binding Layout}" x:DataType="vm:LayoutViewModel">
+      <DockPanel>
+      <!-- The profile being edited: its settings live here, and work whether or not it is on screen. -->
+      <Border DockPanel.Dock="Top" Classes="panel" Margin="0,0,0,16" Padding="12" DataContext="{Binding Profiles}" x:DataType="vm:ProfilesViewModel">
+        <Grid ColumnDefinitions="Auto,*,Auto">
+          <StackPanel VerticalAlignment="Center" Spacing="6">
+            <TextBlock Classes="pixel" FontSize="7" Text="PROFILE" />
+            <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding HasEditing}">
+              <TextBox Width="240" Text="{Binding EditName}" Watermark="profile name" />
+              <Button Classes="px" Content="RENAME" Command="{Binding RenameCommand}" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding !HasEditing}">
+              <TextBox Width="240" Text="{Binding NewProfileName}" Watermark="name this layout" />
+              <Button Classes="px primary" Content="SAVE AS PROFILE" Command="{Binding SaveCurrentCommand}" />
+            </StackPanel>
+          </StackPanel>
+          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Bottom" IsVisible="{Binding HasEditing}">
+            <StackPanel Spacing="6">
+              <TextBlock Classes="pixel" FontSize="7" Text="HOTKEY" />
+              <px:HotkeyBox Gesture="{Binding Editing.Hotkey}" Width="120" ToolTip.Tip="Click, then press keys. Backspace clears." />
+            </StackPanel>
+            <Button Classes="px" Classes.on="{Binding Editing.IsStartup}" Content="STARTUP" Width="104" VerticalAlignment="Bottom"
+                    Command="{Binding Editing.ToggleStartupCommand}" ToolTip.Tip="{Binding Editing.StartupTip}" />
+            <Button Classes="px primary" Content="APPLY" Width="88" VerticalAlignment="Bottom" Command="{Binding ApplyEditingCommand}" IsEnabled="{Binding Editing.CanApply}" IsVisible="{Binding EditingOffline}" />
+            <Button Classes="px danger" Content="DELETE" Width="88" VerticalAlignment="Bottom" Command="{Binding Editing.DeleteCommand}" />
+          </StackPanel>
+        </Grid>
+      </Border>
+      <Panel>
+      <!-- Not on screen: show its arrangement; screens can only be moved once Windows is using it. -->
+      <Border Classes="panel" DataContext="{Binding Profiles}" x:DataType="vm:ProfilesViewModel" IsVisible="{Binding EditingOffline}">
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16">
+          <px:ProfilePreview Screens="{Binding Editing.Screens}" ShowLabels="True" Width="560" Height="300" />
+          <TextBlock Classes="muted" HorizontalAlignment="Center" Text="{Binding Editing.Note}" />
+          <TextBlock Classes="dim" HorizontalAlignment="Center" Text="This profile isn't on screen. Apply it to move screens, set sizes and scaling." />
+        </StackPanel>
+      </Border>
+      <DockPanel DataContext="{Binding Layout}" x:DataType="vm:LayoutViewModel"
+                 IsVisible="{Binding $parent[Window].((vm:MainViewModel)DataContext).Profiles.EditingLive}">
         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,16">
           <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top" Margin="16,0,0,0">
             <Button Classes="px" Content="SHOW ALL" Command="{Binding ShowAllCommand}" IsVisible="{Binding IsFocused}" />
@@ -225,6 +259,8 @@
             </StackPanel>
           </Border>
         </Grid>
+      </DockPanel>
+      </Panel>
       </DockPanel>
       </Panel>
 
