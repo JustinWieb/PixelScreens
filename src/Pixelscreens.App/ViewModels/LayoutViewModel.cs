@@ -82,6 +82,7 @@ public sealed partial class LayoutViewModel : ObservableObject
     [RelayCommand]
     public async Task RefreshAsync()
     {
+        if (Busy) return; // an apply and the Windows display event can both ask at once
         Busy = true;
         try
         {
@@ -124,6 +125,8 @@ public sealed partial class LayoutViewModel : ObservableObject
             Dirty = false;
             EngineOk = true;
             IsRunning = _engine.IsRunning;
+            // The monitor set may have changed under a running hook; give it the zones for what is plugged in now.
+            if (IsRunning) await _engine.PushLayoutAsync();
             Status = $"{Monitors.Count} monitor(s) found" + (IsRunning ? " · enabled" : " · disabled");
         }
         catch (Exception ex)

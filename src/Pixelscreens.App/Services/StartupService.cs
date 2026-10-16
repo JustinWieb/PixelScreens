@@ -20,9 +20,57 @@ public static class StartupService
 
     public static (bool ok, string message) Enable()
     {
-        var tr = $"\\\"{ExePath}\\\" --minimized";
-        var (code, output) = Run($"/create /f /tn \"{TaskName}\" /sc onlogon /rl highest /it /tr \"{tr}\"");
-        return (code == 0, code == 0 ? "PixelScreens will start when you sign in." : output.Trim());
+        // Written as task XML because schtasks /create flags can't lift the defaults that broke "every time":
+        // a 72 hour run limit (Windows killed the app, and the cursor engine with it, after three days)
+        // and no start on battery.
+        var user = System.Security.SecurityElement.Escape($"{Environment.UserDomainName}\\{Environment.UserName}");
+        var exe = System.Security.SecurityElement.Escape(ExePath);
+        var xml = $"""
+            <?xml version="1.0" encoding="UTF-16"?>
+            <Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+              <Triggers>
+                <LogonTrigger><Enabled>true</Enabled><UserId>{user}</UserId></LogonTrigger>
+              </Triggers>
+              <Principals>
+                <Principal id="Author"><UserId>{user}</UserId><LogonType>InteractiveToken</LogonType><RunLevel>HighestAvailable</RunLevel></Principal>
+              </Principals>
+              <Settings>
+                <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+                <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+                <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+                <ExecutionTimeLimit>PT0S</ExecutionTimeLimit>
+                <RestartOnFailure><Interval>PT1M</Interval><Count>3</Count></RestartOnFailure>
+                <Enabled>true</Enabled>
+              </Settings>
+              <Actions Context="Author">
+                <Exec><Command>{exe}</Command><Arguments>--minimized</Arguments></Exec>
+              </Actions>
+            </Task>
+            """;
+        var file = Path.Combine(Path.GetTempPath(), "pixelscreens-task.xml");
+        File.WriteAllText(file, xml, System.Text.Encoding.Unicode);
+        try
+        {
+            var (code, output) = Run($"/create /f /tn \"{TaskName}\" /xml \"{file}\"");
+            return (code == 0, code == 0 ? "PixelScreens will start when you sign in." : output.Trim());
+        }
+        finally
+        {
+            File.Delete(file);
+        }
+    }
+
+    /// <summary>
+    /// Re-create a task made by an older build so it gets the settings above. Only touches the task when it
+    /// launches this same exe, so running a test build elsewhere never repoints sign-in startup at it.
+    /// </summary>
+    public static void Repair()
+    {
+        var (code, xml) = Run($"/query /tn \"{TaskName}\" /xml");
+        if (code != 0) return;
+        var launchesThis = xml.Contains(ExePath, StringComparison.OrdinalIgnoreCase);
+        var current = xml.Contains("<ExecutionTimeLimit>PT0S</ExecutionTimeLimit>");
+        if (launchesThis && !current) Enable();
     }
 
     public static (bool ok, string message) Disable()

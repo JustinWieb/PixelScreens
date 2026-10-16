@@ -53,6 +53,23 @@
             <TextBlock Classes="muted" Margin="0,6,0,0" TextWrapping="Wrap" Text="Saved monitor arrangements. Apply one to switch every screen at once." />
           </StackPanel>
         </DockPanel>
+        <Border DockPanel.Dock="Top" Classes="panel" Padding="0" Margin="0,0,0,12">
+          <Border Classes="row">
+            <DockPanel>
+              <Border DockPanel.Dock="Right" Classes="chip" VerticalAlignment="Center">
+                <TextBlock Classes="pixel" FontSize="7" Text="NOW" Foreground="{StaticResource Px.Brush.Accent}" />
+              </Border>
+              <px:ProfilePreview DockPanel.Dock="Left" Screens="{Binding CurrentScreens}" Margin="0,0,16,0" VerticalAlignment="Center" />
+              <StackPanel VerticalAlignment="Center" Spacing="2">
+                <TextBlock Classes="dim" Text="CURRENT SETUP" FontSize="11" />
+                <TextBlock Text="{Binding CurrentTitle}" />
+                <TextBlock Classes="muted" Text="{Binding CurrentDetail}" TextWrapping="Wrap" />
+                <TextBlock Classes="dim" Text="{Binding CurrentIdle}" IsVisible="{Binding HasCurrentIdle}" TextWrapping="Wrap" />
+                <TextBlock Classes="dim" Text="Type a name above and press Save current to keep this arrangement." IsVisible="{Binding !CurrentIsSaved}" TextWrapping="Wrap" />
+              </StackPanel>
+            </DockPanel>
+          </Border>
+        </Border>
         <Border Classes="panel" Padding="0">
           <ScrollViewer>
             <ItemsControl ItemsSource="{Binding Profiles}">
@@ -65,6 +82,8 @@
                           <TextBlock Classes="pixel" FontSize="7" Text="{Binding Badge}" Foreground="{StaticResource Px.Brush.Accent}" />
                         </Border>
                         <px:HotkeyBox Gesture="{Binding Hotkey}" ToolTip.Tip="Click, then press a key combination. Backspace clears." />
+                        <ToggleButton Content="{Binding StartupLabel}" IsChecked="{Binding IsStartup, Mode=OneWay}" Command="{Binding ToggleStartupCommand}"
+                                      ToolTip.Tip="Apply this profile every time PixelScreens starts (including at sign-in)." />
                         <Button Content="Apply" Command="{Binding ApplyCommand}" IsVisible="{Binding CanApply}" />
                         <Button Content="Delete" Command="{Binding DeleteCommand}" />
                       </StackPanel>
@@ -72,6 +91,7 @@
                       <StackPanel VerticalAlignment="Center" Spacing="2">
                         <TextBlock Text="{Binding Name}" />
                         <TextBlock Classes="muted" Text="{Binding Summary}" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Classes="dim" Text="{Binding Changes}" IsVisible="{Binding HasChanges}" TextWrapping="Wrap" />
                         <TextBlock Classes="dim" Text="{Binding Problem}" Foreground="{StaticResource Px.Brush.Bad}" IsVisible="{Binding HasProblem}" TextWrapping="Wrap" />
                       </StackPanel>
                     </DockPanel>

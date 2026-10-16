@@ -26,6 +26,13 @@ public sealed class DisplayProfileService
 
     public ProfileItem? Current => _initialised ? ProfileRepository.CurrentProfile : null;
 
+    /// <summary>Profiles plus a fresh read of the live arrangement and plugged-in monitors.</summary>
+    public (IReadOnlyList<ProfileItem> Profiles, ProfileItem? Current, DisplayInventory Inventory) Snapshot()
+    {
+        var profiles = Load();
+        return (profiles, Current, DisplayInventory.Capture());
+    }
+
     public bool IsActive(ProfileItem profile) => ProfileRepository.IsActiveProfile(profile);
 
     public Task<ApplyProfileResult> ApplyAsync(ProfileItem profile) =>
