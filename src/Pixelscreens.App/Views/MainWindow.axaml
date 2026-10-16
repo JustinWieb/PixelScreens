@@ -54,22 +54,17 @@
           </StackPanel>
         </DockPanel>
         <Border DockPanel.Dock="Top" Classes="panel" Padding="0" Margin="0,0,0,12">
-          <Border Classes="row">
-            <DockPanel>
-              <Button DockPanel.Dock="Right" Classes="px primary" Content="EDIT LAYOUT" VerticalAlignment="Center" Command="{Binding OpenLayoutCommand}" />
-              <Button DockPanel.Dock="Left" Classes="bare" Margin="0,0,16,0" VerticalAlignment="Center"
-                      Command="{Binding OpenLayoutCommand}" ToolTip.Tip="Click to edit this layout">
-                <px:ProfilePreview Screens="{Binding CurrentScreens}" ShowLabels="True" Width="320" Height="170" />
-              </Button>
-              <StackPanel VerticalAlignment="Center" Spacing="2">
-                <TextBlock Classes="dim" Text="CURRENT SETUP" FontSize="11" />
-                <TextBlock Text="{Binding CurrentTitle}" />
-                <TextBlock Classes="muted" Text="{Binding CurrentDetail}" TextWrapping="Wrap" LineSpacing="4" Margin="0,4,0,0" />
-                <TextBlock Classes="dim" Text="{Binding CurrentIdle}" IsVisible="{Binding HasCurrentIdle}" TextWrapping="Wrap" />
-                <TextBlock Classes="dim" Text="Type a name above and press Save current to keep this arrangement." IsVisible="{Binding !CurrentIsSaved}" TextWrapping="Wrap" />
-              </StackPanel>
-            </DockPanel>
-          </Border>
+          <Grid ColumnDefinitions="Auto,*,Auto" Margin="12">
+            <Button Classes="bare" Command="{Binding OpenLayoutCommand}" ToolTip.Tip="Edit this layout" VerticalAlignment="Center">
+              <px:ProfilePreview Screens="{Binding CurrentScreens}" ShowLabels="True" Width="300" Height="150" />
+            </Button>
+            <StackPanel Grid.Column="1" Margin="20,0" VerticalAlignment="Center" Spacing="4">
+              <TextBlock Classes="pixel" FontSize="7" Text="ON SCREEN NOW" />
+              <TextBlock Text="{Binding CurrentTitle}" FontSize="16" TextTrimming="CharacterEllipsis" />
+              <TextBlock Classes="dim" Text="{Binding CurrentIdle}" IsVisible="{Binding HasCurrentIdle}" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+            <Button Grid.Column="2" Classes="px primary" Content="EDIT LAYOUT" VerticalAlignment="Center" Command="{Binding OpenLayoutCommand}" />
+          </Grid>
         </Border>
         <Border Classes="panel" Padding="0">
           <ScrollViewer>
@@ -77,30 +72,23 @@
               <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="vm:ProfileRow">
                   <Border Classes="row">
-                    <DockPanel>
-                      <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                        <px:HotkeyBox Gesture="{Binding Hotkey}" Width="150" VerticalAlignment="Center" ToolTip.Tip="Click, then press a key combination. Backspace clears." />
-                        <Button Classes="px" Classes.on="{Binding IsStartup}" Content="{Binding StartupLabel}" Width="120" Command="{Binding ToggleStartupCommand}"
-                                ToolTip.Tip="Apply this profile every time PixelScreens starts (including at sign-in)." />
-                        <Button Classes="px primary" Content="APPLY" Width="96" Command="{Binding ApplyCommand}" />
-                        <Button Classes="px danger" Content="DELETE" Width="96" Command="{Binding DeleteCommand}" />
-                      </StackPanel>
-                      <Button DockPanel.Dock="Left" Classes="bare" Margin="0,0,16,0" VerticalAlignment="Center"
-                              Command="{Binding OpenCommand}" ToolTip.Tip="{Binding PreviewTip}">
-                        <px:ProfilePreview Screens="{Binding Screens}" IsUsable="{Binding IsUsable}" />
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                      <Button Classes="bare" VerticalAlignment="Center" Command="{Binding OpenCommand}" ToolTip.Tip="{Binding PreviewTip}">
+                        <px:ProfilePreview Screens="{Binding Screens}" IsUsable="{Binding IsUsable}" Width="120" Height="68" />
                       </Button>
-                      <StackPanel VerticalAlignment="Center" Spacing="3">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                          <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
-                          <Border Classes="chip" IsVisible="{Binding HasBadge}" VerticalAlignment="Center">
-                            <TextBlock Classes="pixel" FontSize="7" Text="{Binding Badge}" Foreground="{StaticResource Px.Brush.Accent}" />
-                          </Border>
-                        </StackPanel>
-                        <TextBlock Classes="muted" Text="{Binding Summary}" TextTrimming="CharacterEllipsis" />
-                        <TextBlock Classes="dim" Text="{Binding Changes}" IsVisible="{Binding HasChanges}" TextWrapping="Wrap" />
-                        <TextBlock Classes="dim" Text="{Binding Problem}" Foreground="{StaticResource Px.Brush.Bad}" IsVisible="{Binding HasProblem}" TextWrapping="Wrap" />
+                      <StackPanel Grid.Column="1" Margin="16,0" VerticalAlignment="Center" Spacing="4" ClipToBounds="True">
+                        <TextBlock Text="{Binding Name}" FontSize="14" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Classes="dim" Text="{Binding Note}" Classes.bad="{Binding NoteIsBad}" Classes.good="{Binding NoteIsGood}" TextTrimming="CharacterEllipsis"
+                                   IsVisible="{Binding HasNote}" ToolTip.Tip="{Binding NoteDetail}" />
                       </StackPanel>
-                    </DockPanel>
+                      <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <px:HotkeyBox Gesture="{Binding Hotkey}" Width="96" VerticalAlignment="Center" ToolTip.Tip="Hotkey: click, then press keys. Backspace clears." />
+                        <Button Classes="px" Classes.on="{Binding IsStartup}" Content="STARTUP" Width="104" Command="{Binding ToggleStartupCommand}"
+                                ToolTip.Tip="{Binding StartupTip}" />
+                        <Button Classes="px primary" Content="APPLY" Width="88" Command="{Binding ApplyCommand}" />
+                        <Button Classes="px danger" Content="DELETE" Width="88" Command="{Binding DeleteCommand}" />
+                      </StackPanel>
+                    </Grid>
                   </Border>
                 </DataTemplate>
               </ItemsControl.ItemTemplate>

@@ -82,13 +82,13 @@ public sealed partial class ProfilesViewModel : ObservableObject
             var match = Profiles.FirstOrDefault(r => r.IsActive);
             CurrentScreens = currentScreens;
             CurrentIsSaved = match is not null;
-            CurrentTitle = match is not null ? match.Name : "Not saved as a profile";
+            CurrentTitle = match is not null ? match.Name : "Unsaved layout";
             CurrentDetail = currentScreens.Count == 0 ? "no active displays reported" :
                 string.Join("\n", currentScreens
                     .OrderByDescending(r => r.IsPrimary).ThenBy(r => r.X)
                     .Select(r => $"{r.Label}  ·  {r.W}x{r.H}  ·  {r.Orientation}" + (r.IsPrimary ? "  ·  primary" : "")));
             var idle = DisplayInventory.Except(inv.Connected, inv.Active);
-            CurrentIdle = idle.Count == 0 ? "" : "plugged in but off: " + string.Join(", ", idle);
+            CurrentIdle = idle.Count == 0 ? "" : "Off: " + string.Join(", ", idle);
 
             EngineOk = true;
             if (!keepStatus) Status = $"display engine ok · {Profiles.Count} profile(s)" + (match is null ? " · current layout is unsaved" : "");
@@ -299,6 +299,37 @@ public sealed partial class ProfileRow : ObservableObject
         else if (!IsUsable)
             Problem = string.IsNullOrWhiteSpace(msg) ? "This profile can't be applied." : msg.Trim();
 
+        // One short line under the name; the full list lives in the tooltip.
+        if (IsActive)
+        {
+            Note = "On screen now";
+            NoteIsGood = true;
+        }
+        else if (Missing.Count > 0)
+        {
+            Note = Missing.Count == 1 ? $"Needs {Missing[0]}" : $"Needs {Missing.Count} unplugged monitors";
+            NoteIsBad = true;
+            NoteDetail = Problem;
+        }
+        else if (!IsUsable)
+        {
+            Note = "Can't be applied";
+            NoteIsBad = true;
+            NoteDetail = Problem;
+        }
+        else if (!IsActive)
+        {
+            var on = turnsOn.Count; var off = turnsOff.Count;
+            Note = (on, off) switch
+            {
+                (0, 0) => "Same monitors, new arrangement",
+                (0, _) => off == 1 ? $"Turns off {turnsOff[0]}" : $"Turns off {off} monitors",
+                (_, 0) => on == 1 ? $"Turns on {turnsOn[0]}" : $"Turns on {on} monitors",
+                _ => $"Turns on {on}, off {off}",
+            };
+            NoteDetail = string.Join("\n", turnsOn.Select(m => $"on: {m}").Concat(turnsOff.Select(m => $"off: {m}")));
+        }
+
         if (!IsActive && Missing.Count == 0)
         {
             var parts = new List<string>();
@@ -317,6 +348,12 @@ public sealed partial class ProfileRow : ObservableObject
     public string Problem { get; } = "";
     public bool HasProblem => Problem.Length > 0;
     public string Changes { get; } = "";
+    public string Note { get; } = "";
+    public bool NoteIsBad { get; }
+    public bool NoteIsGood { get; }
+    public string? NoteDetail { get; }
+    public bool HasNote => Note.Length > 0;
+    public string StartupTip => IsStartup ? "Applied every time PixelScreens starts. Click to turn off." : "Apply this profile every time PixelScreens starts.";
     public bool HasChanges => Changes.Length > 0;
     public string Summary { get; }
 

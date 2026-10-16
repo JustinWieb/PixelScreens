@@ -78,7 +78,8 @@ public sealed class ProfilePreview : Control
     private static void DrawLabel(DrawingContext ctx, Rect r, ScreenRect s, IBrush brush)
     {
         if (r.Width < 40 || r.Height < 22) return;
-        var text = s.Label + "\n" + s.Orientation;
+        // Name only; orientation just when it isn't the usual landscape.
+        var text = s.Orientation == "landscape" ? s.Label : s.Label + "\n" + s.Orientation;
         var ft = new FormattedText(text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, Typeface.Default, 10, brush)
         {
             MaxTextWidth = r.Width - 8,

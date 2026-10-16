@@ -225,6 +225,19 @@
     <Setter Property="Foreground" Value="{StaticResource Px.Brush.Bad}" />
   </Style>
 
+  <!-- Disabled wins over every variant (declared last on purpose). -->
+  <Style Selector="Button.px:disabled">
+    <Setter Property="Foreground" Value="{StaticResource Px.Brush.TextDim}" />
+    <Setter Property="BorderBrush" Value="{StaticResource Px.Brush.BorderStrong}" />
+    <Setter Property="Background" Value="{StaticResource Px.Brush.Panel}" />
+  </Style>
+  <Style Selector="TextBlock.good">
+    <Setter Property="Foreground" Value="#8FE0A6" />
+  </Style>
+  <Style Selector="TextBlock.bad">
+    <Setter Property="Foreground" Value="#FF8C8C" />
+  </Style>
+
   <!-- Bare clickable wrapper (e.g. around a preview): no chrome, hand cursor, outline on hover. -->
   <Style Selector="Button.bare">
     <Setter Property="Cursor" Value="Hand" />
