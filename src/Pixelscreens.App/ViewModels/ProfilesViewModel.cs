@@ -120,6 +120,7 @@ public sealed partial class ProfilesViewModel : ObservableObject
         {
             var (items, current, inv) = await Task.Run(() => _service.Snapshot());
             var currentScreens = ScreenRect.From(current, inv);
+            _currentRaw = currentScreens;
 
             Profiles.Clear();
             foreach (var p in items)
@@ -129,7 +130,7 @@ public sealed partial class ProfilesViewModel : ObservableObject
 
             var match = Profiles.FirstOrDefault(r => r.IsActive);
             if (Editing is { } was) Editing = Profiles.FirstOrDefault(r => r.Uuid == was.Uuid);
-            CurrentScreens = currentScreens;
+            Physicalize();
             CurrentIsSaved = match is not null;
             CurrentTitle = match is not null ? match.Name : "Unsaved layout";
             CurrentDetail = currentScreens.Count == 0 ? "no active displays reported" :
@@ -151,6 +152,32 @@ public sealed partial class ProfilesViewModel : ObservableObject
         {
             Busy = false;
         }
+    }
+
+    private IReadOnlyList<ScreenRect> _currentRaw = [];
+    private IReadOnlyDictionary<string, DeskScreen> _desk = new Dictionary<string, DeskScreen>();
+
+    /// <summary>The Layout tab changed (rescan, drag, resize): redraw every preview from it.</summary>
+    public void SetDesk(IEnumerable<DeskScreen> screens)
+    {
+        _desk = screens.Where(d => d.Pnp.Length > 0).GroupBy(d => d.Pnp).ToDictionary(g => g.Key, g => g.First());
+        // Remember sizes so profiles still draw true-to-size when a monitor is unplugged.
+        var changed = false;
+        foreach (var d in _desk.Values)
+        {
+            var mm = new[] { Math.Round(d.W, 1), Math.Round(d.H, 1) };
+            if (_settings.MonitorSizesMm.TryGetValue(d.Pnp, out var old) && old.SequenceEqual(mm)) continue;
+            _settings.MonitorSizesMm[d.Pnp] = mm;
+            changed = true;
+        }
+        if (changed) _settings.Save();
+        Physicalize();
+    }
+
+    private void Physicalize()
+    {
+        CurrentScreens = PhysicalPreview.Apply(_currentRaw, _desk, _settings.MonitorSizesMm, useLive: true);
+        foreach (var r in Profiles) r.Screens = PhysicalPreview.Apply(r.RawScreens, _desk, _settings.MonitorSizesMm, useLive: r.IsActive);
     }
 
     internal bool IsStartup(string uuid) => _settings.StartupProfileUuid == uuid;
@@ -282,7 +309,15 @@ public enum ScreenState { Unknown, Present, Missing }
 public sealed record ScreenRect(int X, int Y, int W, int H, bool IsPrimary, string Name)
 {
     public string Label { get; init; } = "";
+    public string Pnp { get; init; } = "";
     public ScreenState State { get; init; }
+
+    // Desk position and size in millimetres (see PhysicalPreview). Previews draw these when set.
+    public double PX { get; init; }
+    public double PY { get; init; }
+    public double PW { get; init; }
+    public double PH { get; init; }
+    public bool HasPhys { get; init; }
     public ScreenRotation Rotation { get; init; }
 
     public string Orientation => (W >= H ? "landscape" : "portrait") +
@@ -303,6 +338,7 @@ public sealed record ScreenRect(int X, int Y, int W, int H, bool IsPrimary, stri
                     return new ScreenRect(sp.ScreenX, sp.ScreenY, sp.ScreenWidth, sp.ScreenHeight, sp.IsPrimary, sp.Name ?? "")
                     {
                         Label = known ? mon!.ToString() : $"{sp.ScreenWidth}x{sp.ScreenHeight}",
+                        Pnp = known ? mon!.Pnp : "",
                         State = !known ? ScreenState.Unknown : connected.Contains(mon!.Pnp) ? ScreenState.Present : ScreenState.Missing,
                         Rotation = sp.Rotation,
                     };
@@ -336,7 +372,8 @@ public sealed partial class ProfileRow : ObservableObject
         _owner = owner;
         IsStartup = owner.IsStartup(item.UUID);
         settings.Hotkeys.TryGetValue($"profile:{Uuid}", out _hotkey);
-        Screens = ScreenRect.From(item, inv);
+        RawScreens = ScreenRect.From(item, inv);
+        _screens = RawScreens;
 
         var wants = DisplayInventory.Of(item);
         Missing = DisplayInventory.Except(wants, inv.Connected);
@@ -346,7 +383,7 @@ public sealed partial class ProfileRow : ObservableObject
         // DisplayMagician's strict equality misses profiles saved by older builds, so also accept
         // "same monitors on, same pixel arrangement".
         IsActive = engineSaysActive ||
-            (wants.Count > 0 && DisplayInventory.SameSet(wants, inv.Active) && ScreenRect.SameArrangement(Screens, currentScreens));
+            (wants.Count > 0 && DisplayInventory.SameSet(wants, inv.Active) && ScreenRect.SameArrangement(RawScreens, currentScreens));
 
         IsUsable = item.HasUsableSavedConfiguration(out var msg) && Missing.Count == 0;
         if (Missing.Count > 0)
@@ -394,11 +431,14 @@ public sealed partial class ProfileRow : ObservableObject
             Changes = string.Join(" · ", parts);
         }
 
-        var names = wants.Count > 0 ? string.Join(", ", wants) : string.Join(", ", Screens.Select(sc => $"{sc.W}x{sc.H}"));
-        Summary = Screens.Count == 0 ? names : $"{Screens.Count} screen(s) · {names}";
+        var names = wants.Count > 0 ? string.Join(", ", wants) : string.Join(", ", RawScreens.Select(sc => $"{sc.W}x{sc.H}"));
+        Summary = RawScreens.Count == 0 ? names : $"{RawScreens.Count} screen(s) · {names}";
     }
 
-    public IReadOnlyList<ScreenRect> Screens { get; }
+    /// <summary>Pixel arrangement as Windows stores it.</summary>
+    public IReadOnlyList<ScreenRect> RawScreens { get; }
+    /// <summary>What the preview draws: the same screens at desk-true size and position.</summary>
+    [ObservableProperty] private IReadOnlyList<ScreenRect> _screens;
     public IReadOnlyList<MonitorRef> Missing { get; }
     public string Problem { get; } = "";
     public bool HasProblem => Problem.Length > 0;

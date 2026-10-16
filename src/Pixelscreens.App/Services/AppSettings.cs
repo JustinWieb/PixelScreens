@@ -33,6 +33,9 @@ public sealed class AppSettings
     /// <summary>Global hotkeys. Key: action id ("show", "cursor.toggle", "profile:{uuid}", "audio:{uuid}"). Value: gesture like "Ctrl+Alt+D1".</summary>
     public Dictionary<string, string> Hotkeys { get; set; } = new();
 
+    /// <summary>Last known picture size per monitor (EDID PnP code → [width, height] mm), for drawing unplugged monitors.</summary>
+    public Dictionary<string, double[]> MonitorSizesMm { get; set; } = new();
+
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
         WriteIndented = true,

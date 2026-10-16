@@ -52,16 +52,22 @@ public sealed class ProfilePreview : Control
         if (ss is null || ss.Count == 0) return;
 
         var pad = ShowLabels ? 14 : 8;
-        double minX = ss.Min(s => s.X), minY = ss.Min(s => s.Y);
-        double maxX = ss.Max(s => s.X + s.W), maxY = ss.Max(s => s.Y + s.H);
+        // Desk-true millimetres when known (matches the Layout tab), else Windows pixels.
+        var phys = ss.All(s => s.HasPhys);
+        double X(ScreenRect s) => phys ? s.PX : s.X;
+        double Y(ScreenRect s) => phys ? s.PY : s.Y;
+        double W(ScreenRect s) => phys ? s.PW : s.W;
+        double H(ScreenRect s) => phys ? s.PH : s.H;
+        double minX = ss.Min(X), minY = ss.Min(Y);
+        double maxX = ss.Max(s => X(s) + W(s)), maxY = ss.Max(s => Y(s) + H(s));
         var scale = Math.Min((w - 2 * pad) / Math.Max(1, maxX - minX), (h - 2 * pad) / Math.Max(1, maxY - minY));
         var ox = (w - (maxX - minX) * scale) / 2 - minX * scale;
         var oy = (h - (maxY - minY) * scale) / 2 - minY * scale;
 
         foreach (var s in ss.OrderBy(s => s.IsPrimary))
         {
-            var r = new Rect(Math.Round(ox + s.X * scale) + 0.5, Math.Round(oy + s.Y * scale) + 0.5,
-                Math.Max(2, Math.Round(s.W * scale) - 2), Math.Max(2, Math.Round(s.H * scale) - 2));
+            var r = new Rect(Math.Round(ox + X(s) * scale) + 0.5, Math.Round(oy + Y(s) * scale) + 0.5,
+                Math.Max(2, Math.Round(W(s) * scale) - 2), Math.Max(2, Math.Round(H(s) * scale) - 2));
             // Only the outline carries state; the fill stays neutral.
             var line = s.State switch
             {

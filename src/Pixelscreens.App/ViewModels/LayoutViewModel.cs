@@ -40,6 +40,10 @@ public sealed partial class LayoutViewModel : ObservableObject
 
     public ObservableCollection<MonitorBox> Monitors { get; } = new();
 
+    /// <summary>Raised whenever the desk layout is (re)loaded or saved, so other views can mirror it.</summary>
+    public event Action? DeskChanged;
+    public IEnumerable<DeskScreen> Desk => Monitors.Select(b => new DeskScreen(b.Pnp, b.XMm, b.YMm, b.WidthMm, b.HeightMm));
+
     [ObservableProperty] private string _status = "";
     [ObservableProperty] private bool _engineOk;
     [ObservableProperty] private bool _isRunning;
@@ -170,6 +174,7 @@ public sealed partial class LayoutViewModel : ObservableObject
                     Id = m.Id,
                     Label = Pick(m.Model.PnpDeviceName, src?.DisplayName, m.Model.PnpCode, m.Id).ToUpperInvariant(),
                     GdiName = src?.DisplayName ?? "",
+                    Pnp = (m.Model.PnpCode ?? "").ToUpperInvariant(),
                     Detail = src is null ? "" : $"{src.InPixel.Width:0}x{src.InPixel.Height:0} · {src.EffectiveDpi.X:0} dpi · {src.DisplayName?.Replace(@"\\.\", "")}",
                     IsPrimary = src?.Primary ?? false,
                     XMm = proj.X,
@@ -201,6 +206,7 @@ public sealed partial class LayoutViewModel : ObservableObject
             // The monitor set may have changed under a running hook; give it the zones for what is plugged in now.
             if (IsRunning) await _engine.PushLayoutAsync();
             Status = $"{Monitors.Count} monitor(s) found" + (IsRunning ? " · enabled" : " · disabled");
+            DeskChanged?.Invoke();
         }
         catch (Exception ex)
         {
@@ -274,6 +280,7 @@ public sealed partial class LayoutViewModel : ObservableObject
         {
             var ok = await Task.Run(() => _engine.Save());
             Dirty = !ok;
+            if (ok) DeskChanged?.Invoke();
             Status = ok ? $"saved {DateTime.Now:HH:mm:ss}" + (IsRunning ? " · live" : "") : "layout save failed";
             if (ok && IsRunning) await _engine.PushLayoutAsync();
         }
