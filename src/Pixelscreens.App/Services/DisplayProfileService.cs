@@ -46,6 +46,9 @@ public sealed class DisplayProfileService
         return ProfileRepository.AddProfile(profile) ? profile : null;
     });
 
+    public Task<bool> RenameAsync(ProfileItem profile, string name) =>
+        Task.Run(() => ProfileRepository.RenameProfile(profile, name.Trim()));
+
     public Task<bool> DeleteAsync(ProfileItem profile) =>
         Task.Run(() => ProfileRepository.RemoveProfile(profile));
 }

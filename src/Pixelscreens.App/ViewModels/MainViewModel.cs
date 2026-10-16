@@ -28,6 +28,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         _hotkeys.Triggered += action => Dispatcher.UIThread.Post(async () => await OnHotkeyAsync(action));
 
+        Profiles.OpenLayoutRequested += () => SelectedTab = 2;
+        Layout.DeskChanged += () => Profiles.SetDesk(Layout.Desk);
         Profiles.DisplaysChanged += () => Dispatcher.UIThread.Post(async () => await Layout.RefreshAsync());
         Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
     }
@@ -90,6 +92,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(ShowAudio));
         OnPropertyChanged(nameof(ShowLayout));
         OnPropertyChanged(nameof(ShowSettings));
+        if (value == 2) Profiles.EditActiveIfNone();
         RaiseFooter();
     }
 

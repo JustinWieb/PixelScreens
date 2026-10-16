@@ -19,6 +19,60 @@ public sealed partial class ProfilesViewModel : ObservableObject
         _hotkeysChanged = hotkeysChanged;
     }
 
+    /// <summary>Raised when a profile should be shown on the Layout tab for editing.</summary>
+    public event Action? OpenLayoutRequested;
+
+    /// <summary>The profile open on the Layout tab. Null means the live arrangement isn't saved as a profile.</summary>
+    [ObservableProperty] private ProfileRow? _editing;
+    [ObservableProperty] private string _editName = "";
+
+    public bool HasEditing => Editing is not null;
+    /// <summary>The profile being edited isn't on screen, so only its settings can change until it is applied.</summary>
+    public bool EditingOffline => Editing is { IsActive: false };
+    public bool EditingLive => !EditingOffline;
+    public string EditingTitle => Editing?.Name ?? "Unsaved layout";
+
+    partial void OnEditingChanged(ProfileRow? value)
+    {
+        EditName = value?.Name ?? "";
+        OnPropertyChanged(nameof(HasEditing));
+        OnPropertyChanged(nameof(EditingOffline));
+        OnPropertyChanged(nameof(EditingLive));
+        OnPropertyChanged(nameof(EditingTitle));
+    }
+
+    /// <summary>Open the profile that is on screen (or the unsaved live layout).</summary>
+    [RelayCommand]
+    private void OpenLayout() => BeginEdit(Profiles.FirstOrDefault(r => r.IsActive));
+
+    public void EditActiveIfNone()
+    {
+        if (Editing is null) Editing = Profiles.FirstOrDefault(r => r.IsActive);
+    }
+
+    internal void BeginEdit(ProfileRow? row)
+    {
+        Editing = row;
+        OpenLayoutRequested?.Invoke();
+    }
+
+    [RelayCommand]
+    private async Task RenameAsync()
+    {
+        if (Editing is not { } row) return;
+        var name = EditName.Trim();
+        if (name.Length == 0 || name == row.Name) return;
+        var ok = await _service.RenameAsync(row.Item, name);
+        Status = ok ? $"renamed to \"{name}\"" : $"could not rename (is \"{name}\" already used?)";
+        await ReloadAsync(keepStatus: true);
+    }
+
+    [RelayCommand]
+    private async Task ApplyEditingAsync()
+    {
+        if (Editing is { CanApply: true } row) await ApplyAsync(row);
+    }
+
     /// <summary>Raised after a profile apply actually changed the Windows arrangement.</summary>
     public event Action? DisplaysChanged;
 
@@ -65,7 +119,8 @@ public sealed partial class ProfilesViewModel : ObservableObject
         try
         {
             var (items, current, inv) = await Task.Run(() => _service.Snapshot());
-            var currentScreens = ScreenRect.From(current);
+            var currentScreens = ScreenRect.From(current, inv);
+            _currentRaw = currentScreens;
 
             Profiles.Clear();
             foreach (var p in items)
@@ -74,13 +129,16 @@ public sealed partial class ProfilesViewModel : ObservableObject
             }
 
             var match = Profiles.FirstOrDefault(r => r.IsActive);
-            CurrentScreens = currentScreens;
+            if (Editing is { } was) Editing = Profiles.FirstOrDefault(r => r.Uuid == was.Uuid);
+            Physicalize();
             CurrentIsSaved = match is not null;
-            CurrentTitle = match is not null ? match.Name : "Not saved as a profile";
-            CurrentDetail = inv.Active.Count == 0 ? "no active displays reported" :
-                $"{inv.Active.Count} on: " + string.Join(", ", inv.Active);
+            CurrentTitle = match is not null ? match.Name : "Unsaved layout";
+            CurrentDetail = currentScreens.Count == 0 ? "no active displays reported" :
+                string.Join("\n", currentScreens
+                    .OrderByDescending(r => r.IsPrimary).ThenBy(r => r.X)
+                    .Select(r => $"{r.Label}  ·  {r.W}x{r.H}  ·  {r.Orientation}" + (r.IsPrimary ? "  ·  primary" : "")));
             var idle = DisplayInventory.Except(inv.Connected, inv.Active);
-            CurrentIdle = idle.Count == 0 ? "" : "plugged in but off: " + string.Join(", ", idle);
+            CurrentIdle = idle.Count == 0 ? "" : "Off: " + string.Join(", ", idle);
 
             EngineOk = true;
             if (!keepStatus) Status = $"display engine ok · {Profiles.Count} profile(s)" + (match is null ? " · current layout is unsaved" : "");
@@ -94,6 +152,32 @@ public sealed partial class ProfilesViewModel : ObservableObject
         {
             Busy = false;
         }
+    }
+
+    private IReadOnlyList<ScreenRect> _currentRaw = [];
+    private IReadOnlyDictionary<string, DeskScreen> _desk = new Dictionary<string, DeskScreen>();
+
+    /// <summary>The Layout tab changed (rescan, drag, resize): redraw every preview from it.</summary>
+    public void SetDesk(IEnumerable<DeskScreen> screens)
+    {
+        _desk = screens.Where(d => d.Pnp.Length > 0).GroupBy(d => d.Pnp).ToDictionary(g => g.Key, g => g.First());
+        // Remember sizes so profiles still draw true-to-size when a monitor is unplugged.
+        var changed = false;
+        foreach (var d in _desk.Values)
+        {
+            var mm = new[] { Math.Round(d.W, 1), Math.Round(d.H, 1) };
+            if (_settings.MonitorSizesMm.TryGetValue(d.Pnp, out var old) && old.SequenceEqual(mm)) continue;
+            _settings.MonitorSizesMm[d.Pnp] = mm;
+            changed = true;
+        }
+        if (changed) _settings.Save();
+        Physicalize();
+    }
+
+    private void Physicalize()
+    {
+        CurrentScreens = PhysicalPreview.Apply(_currentRaw, _desk, _settings.MonitorSizesMm, useLive: true);
+        foreach (var r in Profiles) r.Screens = PhysicalPreview.Apply(r.RawScreens, _desk, _settings.MonitorSizesMm, useLive: r.IsActive);
     }
 
     internal bool IsStartup(string uuid) => _settings.StartupProfileUuid == uuid;
@@ -145,6 +229,7 @@ public sealed partial class ProfilesViewModel : ObservableObject
             var saved = await _service.SaveCurrentAsync(name);
             Status = saved is null ? "save failed: engine could not capture the current layout" : $"saved \"{saved.Name}\"";
             NewProfileName = "";
+            _editNewUuid = saved?.UUID;
         }
         catch (Exception ex)
         {
@@ -155,7 +240,11 @@ public sealed partial class ProfilesViewModel : ObservableObject
             Busy = false;
         }
         await ReloadAsync(keepStatus: true);
+        if (_editNewUuid is { } id && Editing is null) Editing = Profiles.FirstOrDefault(r => r.Uuid == id);
+        _editNewUuid = null;
     }
+
+    private string? _editNewUuid;
 
     internal async Task ApplyAsync(ProfileRow row)
     {
@@ -201,6 +290,7 @@ public sealed partial class ProfilesViewModel : ObservableObject
             var ok = await _service.DeleteAsync(row.Item);
             Status = ok ? $"deleted \"{row.Name}\"" : $"could not delete \"{row.Name}\"";
             if (ok) { _settings.Hotkeys.Remove($"profile:{row.Uuid}"); _settings.Save(); _hotkeysChanged(); }
+            if (ok && Editing?.Uuid == row.Uuid) Editing = null;
         }
         catch (Exception ex)
         {
@@ -214,15 +304,45 @@ public sealed partial class ProfilesViewModel : ObservableObject
     }
 }
 
+public enum ScreenState { Unknown, Present, Missing }
+
 public sealed record ScreenRect(int X, int Y, int W, int H, bool IsPrimary, string Name)
 {
-    public static IReadOnlyList<ScreenRect> From(ProfileItem? item)
+    public string Label { get; init; } = "";
+    public string Pnp { get; init; } = "";
+    public ScreenState State { get; init; }
+
+    // Desk position and size in millimetres (see PhysicalPreview). Previews draw these when set.
+    public double PX { get; init; }
+    public double PY { get; init; }
+    public double PW { get; init; }
+    public double PH { get; init; }
+    public bool HasPhys { get; init; }
+    public ScreenRotation Rotation { get; init; }
+
+    public string Orientation => (W >= H ? "landscape" : "portrait") +
+        (Rotation is ScreenRotation.ROTATE_180 or ScreenRotation.ROTATE_270 ? " (flipped)" : "");
+
+    /// <summary>The profile's screens, each tagged with its monitor and whether that monitor is plugged in now.</summary>
+    public static IReadOnlyList<ScreenRect> From(ProfileItem? item, DisplayInventory inv)
     {
         if (item is null) return [];
         try
         {
+            var monitors = DisplayInventory.ScreenMonitors(item);
+            var connected = inv.Connected.Select(r => r.Pnp).ToHashSet();
             return item.GetScreenPositions()
-                .Select(sp => new ScreenRect(sp.ScreenX, sp.ScreenY, sp.ScreenWidth, sp.ScreenHeight, sp.IsPrimary, sp.Name ?? ""))
+                .Select(sp =>
+                {
+                    var known = monitors.TryGetValue(sp.Name ?? "", out var mon);
+                    return new ScreenRect(sp.ScreenX, sp.ScreenY, sp.ScreenWidth, sp.ScreenHeight, sp.IsPrimary, sp.Name ?? "")
+                    {
+                        Label = known ? mon!.ToString() : $"{sp.ScreenWidth}x{sp.ScreenHeight}",
+                        Pnp = known ? mon!.Pnp : "",
+                        State = !known ? ScreenState.Unknown : connected.Contains(mon!.Pnp) ? ScreenState.Present : ScreenState.Missing,
+                        Rotation = sp.Rotation,
+                    };
+                })
                 .ToList();
         }
         catch
@@ -252,7 +372,8 @@ public sealed partial class ProfileRow : ObservableObject
         _owner = owner;
         IsStartup = owner.IsStartup(item.UUID);
         settings.Hotkeys.TryGetValue($"profile:{Uuid}", out _hotkey);
-        Screens = ScreenRect.From(item);
+        RawScreens = ScreenRect.From(item, inv);
+        _screens = RawScreens;
 
         var wants = DisplayInventory.Of(item);
         Missing = DisplayInventory.Except(wants, inv.Connected);
@@ -262,13 +383,44 @@ public sealed partial class ProfileRow : ObservableObject
         // DisplayMagician's strict equality misses profiles saved by older builds, so also accept
         // "same monitors on, same pixel arrangement".
         IsActive = engineSaysActive ||
-            (wants.Count > 0 && DisplayInventory.SameSet(wants, inv.Active) && ScreenRect.SameArrangement(Screens, currentScreens));
+            (wants.Count > 0 && DisplayInventory.SameSet(wants, inv.Active) && ScreenRect.SameArrangement(RawScreens, currentScreens));
 
         IsUsable = item.HasUsableSavedConfiguration(out var msg) && Missing.Count == 0;
         if (Missing.Count > 0)
             Problem = "Missing: " + string.Join(", ", Missing) + " (not plugged in)";
         else if (!IsUsable)
             Problem = string.IsNullOrWhiteSpace(msg) ? "This profile can't be applied." : msg.Trim();
+
+        // One short line under the name; the full list lives in the tooltip.
+        if (IsActive)
+        {
+            Note = "On screen now";
+            NoteIsGood = true;
+        }
+        else if (Missing.Count > 0)
+        {
+            Note = Missing.Count == 1 ? $"Needs {Missing[0]}" : $"Needs {Missing.Count} unplugged monitors";
+            NoteIsBad = true;
+            NoteDetail = Problem;
+        }
+        else if (!IsUsable)
+        {
+            Note = "Can't be applied";
+            NoteIsBad = true;
+            NoteDetail = Problem;
+        }
+        else if (!IsActive)
+        {
+            var on = turnsOn.Count; var off = turnsOff.Count;
+            Note = (on, off) switch
+            {
+                (0, 0) => "Same monitors, new arrangement",
+                (0, _) => off == 1 ? $"Turns off {turnsOff[0]}" : $"Turns off {off} monitors",
+                (_, 0) => on == 1 ? $"Turns on {turnsOn[0]}" : $"Turns on {on} monitors",
+                _ => $"Turns on {on}, off {off}",
+            };
+            NoteDetail = string.Join("\n", turnsOn.Select(m => $"on: {m}").Concat(turnsOff.Select(m => $"off: {m}")));
+        }
 
         if (!IsActive && Missing.Count == 0)
         {
@@ -279,15 +431,24 @@ public sealed partial class ProfileRow : ObservableObject
             Changes = string.Join(" · ", parts);
         }
 
-        var names = wants.Count > 0 ? string.Join(", ", wants) : string.Join(", ", Screens.Select(sc => $"{sc.W}x{sc.H}"));
-        Summary = Screens.Count == 0 ? names : $"{Screens.Count} screen(s) · {names}";
+        var names = wants.Count > 0 ? string.Join(", ", wants) : string.Join(", ", RawScreens.Select(sc => $"{sc.W}x{sc.H}"));
+        Summary = RawScreens.Count == 0 ? names : $"{RawScreens.Count} screen(s) · {names}";
     }
 
-    public IReadOnlyList<ScreenRect> Screens { get; }
+    /// <summary>Pixel arrangement as Windows stores it.</summary>
+    public IReadOnlyList<ScreenRect> RawScreens { get; }
+    /// <summary>What the preview draws: the same screens at desk-true size and position.</summary>
+    [ObservableProperty] private IReadOnlyList<ScreenRect> _screens;
     public IReadOnlyList<MonitorRef> Missing { get; }
     public string Problem { get; } = "";
     public bool HasProblem => Problem.Length > 0;
     public string Changes { get; } = "";
+    public string Note { get; } = "";
+    public bool NoteIsBad { get; }
+    public bool NoteIsGood { get; }
+    public string? NoteDetail { get; }
+    public bool HasNote => Note.Length > 0;
+    public string StartupTip => IsStartup ? "Applied every time PixelScreens starts. Click to turn off." : "Apply this profile every time PixelScreens starts.";
     public bool HasChanges => Changes.Length > 0;
     public string Summary { get; }
 
@@ -300,7 +461,7 @@ public sealed partial class ProfileRow : ObservableObject
     public bool IsActive { get; }
     public bool IsUsable { get; }
     public bool IsStartup { get; }
-    public string StartupLabel => IsStartup ? "Startup: on" : "Use at startup";
+    public string StartupLabel => IsStartup ? "STARTUP ON" : "STARTUP";
 
     public string Badge => IsActive ? "ACTIVE" : Missing.Count > 0 ? "MISSING DISPLAY" : IsUsable ? "" : "UNAVAILABLE";
     public bool HasBadge => Badge.Length > 0;
@@ -314,4 +475,8 @@ public sealed partial class ProfileRow : ObservableObject
 
     [RelayCommand]
     private Task ToggleStartupAsync() => _owner.ToggleStartupAsync(this);
+
+    /// <summary>A profile is a layout: Edit opens it on the Layout tab with its settings.</summary>
+    [RelayCommand]
+    private void Edit() => _owner.BeginEdit(this);
 }

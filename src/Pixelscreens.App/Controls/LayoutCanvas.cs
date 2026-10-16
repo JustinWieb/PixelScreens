@@ -81,6 +81,15 @@ public sealed class LayoutCanvas : Control
 
     private double _scale = 0.2;      // canvas px per mm
     private Point _origin;            // canvas point for (0mm, 0mm)
+
+    // View on top of the auto-fit: wheel zooms around the pointer, dragging empty space pans.
+    private double _zoom = 1;
+    private Vector _pan;
+    private bool _panning;
+    private Point _panStart;
+    private Vector _panAtStart;
+    private DateTime _lastEmptyClick;
+    private const double MinZoom = 0.25, MaxZoom = 8;
     private MonitorBox? _drag;
     private Point _dragStartPointer;
     private (double x, double y) _dragStartMm;
@@ -93,6 +102,7 @@ public sealed class LayoutCanvas : Control
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
+        if (change.Property == FocusedProperty) { _zoom = 1; _pan = default; }
         if (change.Property == MonitorsProperty)
         {
             if (change.OldValue is ObservableCollection<MonitorBox> old)
@@ -138,6 +148,36 @@ public sealed class LayoutCanvas : Control
         _origin = new Point(
             (Bounds.Width - contentW) / 2 - minX * _scale,
             (Bounds.Height - contentH) / 2 - minY * _scale);
+
+        // Apply the user's zoom about the canvas centre, then their pan.
+        var c = new Point(Bounds.Width / 2, Bounds.Height / 2);
+        _origin = c + (_origin - c) * _zoom + _pan;
+        _scale *= _zoom;
+    }
+
+    private void ResetView()
+    {
+        _zoom = 1;
+        _pan = default;
+        InvalidateVisual();
+    }
+
+    protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
+    {
+        base.OnPointerWheelChanged(e);
+        var p = e.GetPosition(this);
+        var newZoom = Math.Clamp(_zoom * Math.Pow(1.15, e.Delta.Y), MinZoom, MaxZoom);
+        if (Math.Abs(newZoom - _zoom) < 1e-9) return;
+        // Keep the millimetre under the pointer fixed: origin scales about the pointer.
+        var k = newZoom / _zoom;
+        var newOrigin = p + (_origin - p) * k;
+        // Fit() rebuilds origin as c + (fit - c) * zoom + pan; solve for the pan that lands on newOrigin.
+        var c = new Point(Bounds.Width / 2, Bounds.Height / 2);
+        var fit = c + (_origin - _pan - c) / _zoom;
+        _zoom = newZoom;
+        _pan = newOrigin - (c + (fit - c) * _zoom);
+        e.Handled = true;
+        InvalidateVisual();
     }
 
     private Rect ToCanvas(MonitorBox m) => new(
@@ -208,7 +248,7 @@ public sealed class LayoutCanvas : Control
     public override void Render(DrawingContext ctx)
     {
         // Re-fit unless mid-drag, so the view never jumps under the pointer.
-        if (_drag is null) Fit();
+        if (_drag is null && !_panning) Fit();
 
         // Background grid every 100mm.
         if (GridBrush is not null && _scale > 0)
@@ -280,6 +320,10 @@ public sealed class LayoutCanvas : Control
             if (_snapY is double gy) ctx.DrawLine(gp, new Point(0, Math.Round(gy) + 0.5), new Point(Bounds.Width, Math.Round(gy) + 0.5));
         }
 
+        var hint = new FormattedText($"{_zoom * 100:0}%  ·  scroll to zoom  ·  drag empty space to pan  ·  double-click empty space to reset",
+            System.Globalization.CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new Typeface(FontFamily.Default), 11, MutedBrush);
+        ctx.DrawText(hint, new Point(12, Bounds.Height - hint.Height - 10));
+
         // Handles on the selected monitor: corners resize the panel, edges set that side's bezel.
         var sel = ms.FirstOrDefault(m => m.IsSelected);
         if (sel is not null && (Focused is null || sel == Focused))
@@ -298,6 +342,12 @@ public sealed class LayoutCanvas : Control
         if (ms is null) return;
         var p = e.GetPosition(this);
         var hit = false;
+
+        if (e.GetCurrentPoint(this).Properties.IsMiddleButtonPressed)
+        {
+            BeginPan(e, p);
+            return;
+        }
 
         // Resize / bezel handles on the selected monitor take priority.
         var sel = ms.FirstOrDefault(m => m.IsSelected);
@@ -341,12 +391,36 @@ public sealed class LayoutCanvas : Control
             hit = true;
             break;
         }
-        if (!hit) MonitorClicked?.Invoke(this, null);
+        if (!hit)
+        {
+            var now = DateTime.UtcNow;
+            if ((now - _lastEmptyClick).TotalMilliseconds < 400) { _lastEmptyClick = DateTime.MinValue; ResetView(); return; }
+            _lastEmptyClick = now;
+            BeginPan(e, p);
+        }
+    }
+
+    private void BeginPan(PointerPressedEventArgs e, Point p)
+    {
+        _panning = true;
+        _moved = false;
+        _panStart = p;
+        _panAtStart = _pan;
+        e.Pointer.Capture(this);
+        Cursor = new Cursor(StandardCursorType.SizeAll);
     }
 
     protected override void OnPointerMoved(PointerEventArgs e)
     {
         base.OnPointerMoved(e);
+        if (_panning)
+        {
+            var d = e.GetPosition(this) - _panStart;
+            if (Math.Abs(d.X) + Math.Abs(d.Y) > 3) _moved = true;
+            _pan = _panAtStart + d;
+            InvalidateVisual();
+            return;
+        }
         if (_drag is null)
         {
             var selHover = Monitors?.FirstOrDefault(m => m.IsSelected);
@@ -401,6 +475,15 @@ public sealed class LayoutCanvas : Control
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
     {
         base.OnPointerReleased(e);
+        if (_panning)
+        {
+            _panning = false;
+            e.Pointer.Capture(null);
+            Cursor = Cursor.Default;
+            if (!_moved) MonitorClicked?.Invoke(this, null); // a plain click on empty space still deselects
+            InvalidateVisual();
+            return;
+        }
         if (_drag is null) return;
         e.Pointer.Capture(null);
         var clicked = _drag;
