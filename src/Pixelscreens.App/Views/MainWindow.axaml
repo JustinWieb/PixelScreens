@@ -190,7 +190,7 @@
           </StackPanel>
           <StackPanel>
             <TextBlock Classes="pixel" Text="PHYSICAL LAYOUT" />
-            <TextBlock Classes="muted" Margin="0,6,0,0" TextWrapping="Wrap" Text="Drag screens to where they really sit on your desk. When enabled, the mouse crosses between screens at the matching physical spot instead of jumping. Windows still decides which screen is where." />
+            <TextBlock Classes="muted" Margin="0,6,0,0" TextWrapping="Wrap" Text="Drag screens to where they sit on your desk. The mouse crosses at the matching physical spot." />
           </StackPanel>
         </DockPanel>
         <Grid ColumnDefinitions="*,16,260">
@@ -203,8 +203,9 @@
                              TextBrush="{StaticResource Px.Brush.Text}"
                              MutedBrush="{StaticResource Px.Brush.TextMuted}" />
           </Border>
-          <Border Grid.Column="2" Classes="panel">
-            <StackPanel Spacing="12">
+          <Border Grid.Column="2" Classes="panel" Padding="0">
+            <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="12" Margin="16">
               <DockPanel>
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="4">
                   <RadioButton Classes="unit" GroupName="units" Content="in" IsChecked="{Binding UseInches}" />
@@ -246,17 +247,15 @@
                 <StackPanel Spacing="4">
                   <TextBlock Classes="pixel" FontSize="7" Text="OVERALL" />
                   <TextBlock Classes="muted" Text="{Binding OutsideText}" />
-                  <TextBlock Classes="dim" TextWrapping="Wrap" Text="Size is the picture area. Bezels are the frame around it, so overall = size + bezels." />
                 </StackPanel>
-                <TextBlock Classes="dim" TextWrapping="Wrap" Text="Changes save on their own a moment after you stop editing, to this monitor's saved profile, and go live if the engine is on." />
               </StackPanel>
               </Panel>
               <StackPanel Spacing="6" IsVisible="{Binding HasScale}">
                 <TextBlock Classes="pixel" FontSize="7" Text="SCALE" />
                 <ComboBox ItemsSource="{Binding ScaleOptions}" SelectedItem="{Binding SelectedScale}" HorizontalAlignment="Stretch" />
-                <TextBlock Classes="dim" TextWrapping="Wrap" Text="Windows text and app size on this monitor. Applies right away." />
               </StackPanel>
             </StackPanel>
+            </ScrollViewer>
           </Border>
         </Grid>
       </DockPanel>
