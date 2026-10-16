@@ -27,6 +27,30 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Options.PropertyChanged += (_, e) => { if (e.PropertyName is nameof(SettingsViewModel.Status)) RaiseFooter(); };
 
         _hotkeys.Triggered += action => Dispatcher.UIThread.Post(async () => await OnHotkeyAsync(action));
+
+        Profiles.DisplaysChanged += () => Dispatcher.UIThread.Post(async () => await Layout.RefreshAsync());
+        Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
+    }
+
+    private CancellationTokenSource? _displayDebounce;
+
+    /// <summary>
+    /// Monitors plugged, unplugged, or rearranged (by us, Windows Settings, or a GPU panel): re-read both tabs once
+    /// Windows has settled, so Profiles and Layout never show a stale arrangement.
+    /// </summary>
+    private void OnDisplaySettingsChanged(object? sender, EventArgs e)
+    {
+        _displayDebounce?.Cancel();
+        var cts = _displayDebounce = new CancellationTokenSource();
+        _ = Task.Run(async () =>
+        {
+            try { await Task.Delay(1500, cts.Token); } catch (OperationCanceledException) { return; }
+            await Dispatcher.UIThread.InvokeAsync(async () =>
+            {
+                await Profiles.SyncAsync();
+                if (!Layout.Busy) await Layout.RefreshAsync();
+            });
+        });
     }
 
     public ProfilesViewModel Profiles { get; }
@@ -106,6 +130,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
+        Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
         _hotkeys.Dispose();
         _cursorEngine.Dispose();
     }
