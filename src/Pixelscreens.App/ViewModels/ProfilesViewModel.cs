@@ -96,6 +96,43 @@ public sealed partial class ProfilesViewModel : ObservableObject
         }
     }
 
+    internal bool IsStartup(string uuid) => _settings.StartupProfileUuid == uuid;
+
+    internal async Task ToggleStartupAsync(ProfileRow row)
+    {
+        var on = !row.IsStartup;
+        _settings.StartupProfileUuid = on ? row.Uuid : null;
+        _settings.Save();
+        Status = on ? $"\"{row.Name}\" will be applied every time PixelScreens starts" : "no profile applied at startup";
+        await ReloadAsync(keepStatus: true);
+    }
+
+    /// <summary>
+    /// Put the startup profile on screen. At sign-in some monitors (TVs, DisplayPort sleep) wake late,
+    /// so wait up to <paramref name="wait"/> for them before applying.
+    /// </summary>
+    public async Task ApplyStartupProfileAsync(TimeSpan wait)
+    {
+        var uuid = _settings.StartupProfileUuid;
+        if (string.IsNullOrEmpty(uuid)) return;
+        var deadline = DateTime.UtcNow + wait;
+        while (true)
+        {
+            var row = Profiles.FirstOrDefault(r => r.Uuid == uuid);
+            if (row is null) { Status = "startup profile no longer exists; pick another on Profiles"; return; }
+            if (row.IsActive) { Status = $"startup: \"{row.Name}\" already on screen"; return; }
+            if (row.CanApply) { await ApplyAsync(row); return; }
+            if (DateTime.UtcNow >= deadline)
+            {
+                Status = $"startup: could not apply \"{row.Name}\". {row.Problem}";
+                return;
+            }
+            Status = $"startup: waiting for monitors before applying \"{row.Name}\"... {row.Problem}";
+            await Task.Delay(3000);
+            await ReloadAsync(keepStatus: true);
+        }
+    }
+
     [RelayCommand]
     private async Task SaveCurrentAsync()
     {
@@ -213,6 +250,7 @@ public sealed partial class ProfileRow : ObservableObject
     {
         Item = item;
         _owner = owner;
+        IsStartup = owner.IsStartup(item.UUID);
         settings.Hotkeys.TryGetValue($"profile:{Uuid}", out _hotkey);
         Screens = ScreenRect.From(item);
 
@@ -261,6 +299,9 @@ public sealed partial class ProfileRow : ObservableObject
     public string Uuid => Item.UUID;
     public bool IsActive { get; }
     public bool IsUsable { get; }
+    public bool IsStartup { get; }
+    public string StartupLabel => IsStartup ? "Startup: on" : "Use at startup";
+
     public string Badge => IsActive ? "ACTIVE" : Missing.Count > 0 ? "MISSING DISPLAY" : IsUsable ? "" : "UNAVAILABLE";
     public bool HasBadge => Badge.Length > 0;
     public bool CanApply => IsUsable && !IsActive;
@@ -270,4 +311,7 @@ public sealed partial class ProfileRow : ObservableObject
 
     [RelayCommand]
     private Task DeleteAsync() => _owner.DeleteAsync(this);
+
+    [RelayCommand]
+    private Task ToggleStartupAsync() => _owner.ToggleStartupAsync(this);
 }

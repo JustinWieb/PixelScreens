@@ -101,7 +101,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public async Task InitialiseAsync()
     {
+        _ = Task.Run(StartupService.Repair);
         await Profiles.RefreshAsync();
+        // Apply the chosen profile before reading the physical layout, so the cursor engine starts on the right monitors.
+        await Profiles.ApplyStartupProfileAsync(TimeSpan.FromSeconds(60));
         await Audio.RefreshAsync();
         await Layout.RefreshAsync();
         _hotkeys.Start();

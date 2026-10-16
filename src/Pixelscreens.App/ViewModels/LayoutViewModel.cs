@@ -82,6 +82,7 @@ public sealed partial class LayoutViewModel : ObservableObject
     [RelayCommand]
     public async Task RefreshAsync()
     {
+        if (Busy) return; // an apply and the Windows display event can both ask at once
         Busy = true;
         try
         {

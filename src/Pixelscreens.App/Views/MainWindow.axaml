@@ -82,6 +82,8 @@
                           <TextBlock Classes="pixel" FontSize="7" Text="{Binding Badge}" Foreground="{StaticResource Px.Brush.Accent}" />
                         </Border>
                         <px:HotkeyBox Gesture="{Binding Hotkey}" ToolTip.Tip="Click, then press a key combination. Backspace clears." />
+                        <ToggleButton Content="{Binding StartupLabel}" IsChecked="{Binding IsStartup, Mode=OneWay}" Command="{Binding ToggleStartupCommand}"
+                                      ToolTip.Tip="Apply this profile every time PixelScreens starts (including at sign-in)." />
                         <Button Content="Apply" Command="{Binding ApplyCommand}" IsVisible="{Binding CanApply}" />
                         <Button Content="Delete" Command="{Binding DeleteCommand}" />
                       </StackPanel>

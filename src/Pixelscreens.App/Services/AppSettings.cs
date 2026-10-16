@@ -14,6 +14,8 @@ public sealed class AppSettings
     public bool CloseToTray { get; set; } = true;
     public bool EnableCursorOnStart { get; set; } = true;
     public bool UnitsInches { get; set; } = true;
+    /// <summary>Display profile applied every time PixelScreens starts. Null means leave the displays alone.</summary>
+    public string? StartupProfileUuid { get; set; }
 
     // Cursor engine (mirrors LittleBigMouse's ILayoutOptions, the parts a user cares about)
     public string Algorithm { get; set; } = "Cross";
