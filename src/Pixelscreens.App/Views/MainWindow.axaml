@@ -173,7 +173,29 @@
         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16">
           <px:ProfilePreview Screens="{Binding Editing.Screens}" ShowLabels="True" Width="560" Height="300" />
           <TextBlock Classes="muted" HorizontalAlignment="Center" Text="{Binding Editing.Note}" />
-          <TextBlock Classes="dim" HorizontalAlignment="Center" Text="This profile isn't on screen. Apply it to move screens, set sizes and scaling." />
+          <TextBlock Classes="dim" HorizontalAlignment="Center" Text="Not on screen. Apply it to edit positions, or rebuild it on the monitors you have." />
+          <!-- Replace displays: pick which live monitor fills each spot, then rebuild and re-save the profile. -->
+          <Border Classes="panel" IsVisible="{Binding HasSwaps}" HorizontalAlignment="Center" MinWidth="520">
+            <StackPanel Spacing="10">
+              <TextBlock Classes="pixel" FontSize="7" Text="MONITORS" />
+              <ItemsControl ItemsSource="{Binding Swaps}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:SwapRow">
+                    <Grid ColumnDefinitions="200,Auto,*" Margin="0,4">
+                      <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="{Binding From}" Classes.bad="{Binding IsMissing}" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Classes="dim" Text="{Binding Spot}" />
+                      </StackPanel>
+                      <TextBlock Grid.Column="1" Classes="muted" Text="→" Margin="12,0" VerticalAlignment="Center" />
+                      <ComboBox Grid.Column="2" ItemsSource="{Binding Options}" SelectedItem="{Binding Selected}" HorizontalAlignment="Stretch" />
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <Button Classes="px primary" Content="REBUILD ON THESE MONITORS" HorizontalAlignment="Right" Command="{Binding RebuildCommand}" IsEnabled="{Binding !Busy}"
+                      ToolTip.Tip="Arranges these live monitors like this profile, then saves it under the same name." />
+            </StackPanel>
+          </Border>
         </StackPanel>
       </Border>
       <DockPanel DataContext="{Binding Layout}" x:DataType="vm:LayoutViewModel"

@@ -39,6 +39,7 @@ public sealed partial class ProfilesViewModel : ObservableObject
         OnPropertyChanged(nameof(EditingOffline));
         OnPropertyChanged(nameof(EditingLive));
         OnPropertyChanged(nameof(EditingTitle));
+        BuildSwaps();
     }
 
     /// <summary>Open the profile that is on screen (or the unsaved live layout).</summary>
@@ -119,6 +120,7 @@ public sealed partial class ProfilesViewModel : ObservableObject
         try
         {
             var (items, current, inv) = await Task.Run(() => _service.Snapshot());
+            _inv = inv;
             var currentScreens = ScreenRect.From(current, inv);
             _currentRaw = currentScreens;
 
@@ -155,6 +157,64 @@ public sealed partial class ProfilesViewModel : ObservableObject
     }
 
     private IReadOnlyList<ScreenRect> _currentRaw = [];
+    private DisplayInventory? _inv;
+
+    /// <summary>One row per screen of the profile being edited: which live monitor should fill that spot.</summary>
+    public ObservableCollection<SwapRow> Swaps { get; } = new();
+    public bool HasSwaps => Swaps.Count > 0;
+
+    private void BuildSwaps()
+    {
+        Swaps.Clear();
+        if (Editing is { IsActive: false } row && _inv is { } inv)
+        {
+            var live = inv.Connected.ToList();
+            var taken = new HashSet<string>(row.RawScreens.Where(r => live.Any(l => l.Pnp == r.Pnp)).Select(r => r.Pnp));
+            foreach (var sc in row.RawScreens.Where(r => r.Pnp.Length > 0))
+            {
+                var same = live.FirstOrDefault(l => l.Pnp == sc.Pnp);
+                // A missing monitor gets the first live one this profile doesn't already use.
+                var pick = same ?? live.FirstOrDefault(l => taken.Add(l.Pnp));
+                Swaps.Add(new SwapRow(sc, live, pick, missing: same is null));
+            }
+        }
+        OnPropertyChanged(nameof(HasSwaps));
+    }
+
+    [RelayCommand]
+    private async Task RebuildAsync()
+    {
+        if (Editing is not { } row) return;
+        if (Swaps.Any(w => w.Selected is null)) { Status = "pick a monitor for every screen"; return; }
+        if (Swaps.Select(w => w.Selected!.Pnp).Distinct().Count() != Swaps.Count) { Status = "each monitor can only fill one spot"; return; }
+
+        var placements = Swaps.Select(w => new DisplayArranger.Placement(w.Selected!.Pnp, w.Screen.X, w.Screen.Y, w.Screen.W, w.Screen.H,
+            w.Screen.IsPrimary, w.Screen.Rotation switch
+            {
+                DisplayMagicianShared.ScreenRotation.ROTATE_90 => 90,
+                DisplayMagicianShared.ScreenRotation.ROTATE_180 => 180,
+                DisplayMagicianShared.ScreenRotation.ROTATE_270 => 270,
+                _ => 0,
+            })).ToList();
+
+        Busy = true;
+        Status = $"rebuilding \"{row.Name}\" on these monitors...";
+        try
+        {
+            var (ok, msg) = await _service.RebuildAsync(row.Item, placements);
+            Status = ok ? $"\"{row.Name}\" rebuilt and saved" : msg;
+            if (ok) DisplaysChanged?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            Status = $"rebuild failed: {ex.Message}";
+        }
+        finally
+        {
+            Busy = false;
+        }
+        await ReloadAsync(keepStatus: true);
+    }
     private IReadOnlyDictionary<string, DeskScreen> _desk = new Dictionary<string, DeskScreen>();
 
     /// <summary>The Layout tab changed (rescan, drag, resize): redraw every preview from it.</summary>
@@ -305,6 +365,24 @@ public sealed partial class ProfilesViewModel : ObservableObject
 }
 
 public enum ScreenState { Unknown, Present, Missing }
+
+public sealed partial class SwapRow : ObservableObject
+{
+    public SwapRow(ScreenRect screen, IReadOnlyList<MonitorRef> options, MonitorRef? selected, bool missing)
+    {
+        Screen = screen;
+        Options = options;
+        _selected = selected;
+        IsMissing = missing;
+    }
+
+    public ScreenRect Screen { get; }
+    public string From => Screen.Label;
+    public string Spot => $"{Screen.W}x{Screen.H}" + (Screen.IsPrimary ? " · primary" : "");
+    public bool IsMissing { get; }
+    public IReadOnlyList<MonitorRef> Options { get; }
+    [ObservableProperty] private MonitorRef? _selected;
+}
 
 public sealed record ScreenRect(int X, int Y, int W, int H, bool IsPrimary, string Name)
 {
