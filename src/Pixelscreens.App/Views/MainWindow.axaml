@@ -168,40 +168,45 @@
         </WrapPanel>
       </Border>
       <Panel>
-      <!-- Not on screen: show its arrangement. The preview takes whatever height is left; the monitor list never gets cut off. -->
-      <Border Classes="panel" DataContext="{Binding Profiles}" x:DataType="vm:ProfilesViewModel" IsVisible="{Binding EditingOffline}">
-        <DockPanel>
-          <Border DockPanel.Dock="Bottom" Classes="panel" Margin="0,12,0,0" IsVisible="{Binding HasSwaps}">
-            <DockPanel>
-              <Button DockPanel.Dock="Right" Classes="px primary" Content="REBUILD" VerticalAlignment="Bottom" Margin="16,0,0,0"
-                      Command="{Binding RebuildCommand}" IsEnabled="{Binding !Busy}"
-                      ToolTip.Tip="Arrange these live monitors like this profile, then save it under the same name." />
-              <StackPanel Spacing="8">
-                <TextBlock Classes="pixel" FontSize="7" Text="REPLACE MONITORS" />
-                <ScrollViewer MaxHeight="220" HorizontalScrollBarVisibility="Disabled">
-                  <ItemsControl ItemsSource="{Binding Swaps}">
-                    <ItemsControl.ItemTemplate>
-                      <DataTemplate x:DataType="vm:SwapRow">
-                        <Grid ColumnDefinitions="*,32,*" Margin="0,3">
-                          <StackPanel VerticalAlignment="Center">
-                            <TextBlock Text="{Binding From}" Classes.bad="{Binding IsMissing}" TextTrimming="CharacterEllipsis" />
-                            <TextBlock Classes="dim" Text="{Binding Spot}" TextTrimming="CharacterEllipsis" />
-                          </StackPanel>
-                          <TextBlock Grid.Column="1" Classes="muted" Text="→" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                          <ComboBox Grid.Column="2" ItemsSource="{Binding Options}" SelectedItem="{Binding Selected}" HorizontalAlignment="Stretch" VerticalAlignment="Center" />
-                        </Grid>
-                      </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                  </ItemsControl>
-                </ScrollViewer>
+      <!-- Not on screen: same canvas as the live layout, view-only. Click a screen to choose which monitor fills it. -->
+      <Grid ColumnDefinitions="*,16,260" DataContext="{Binding Profiles}" x:DataType="vm:ProfilesViewModel" IsVisible="{Binding EditingOffline}">
+        <Border Classes="panel" Padding="0" ClipToBounds="True">
+          <px:LayoutCanvas x:Name="OfflineCanvas" Monitors="{Binding OfflineBoxes}" IsReadOnly="True"
+                           PixelFont="{StaticResource Px.Font.Pixel}"
+                           BoxBrush="{StaticResource Px.Brush.PanelRaised}"
+                           BorderBrush="{StaticResource Px.Brush.BorderStrong}"
+                           AccentBrush="{StaticResource Px.Brush.Accent}"
+                           TextBrush="{StaticResource Px.Brush.Text}"
+                           MutedBrush="{StaticResource Px.Brush.TextMuted}" />
+        </Border>
+        <Border Grid.Column="2" Classes="panel" Padding="0">
+          <DockPanel>
+            <StackPanel DockPanel.Dock="Bottom" Spacing="8" Margin="16">
+              <TextBlock Classes="dim" TextWrapping="Wrap" Text="Not on screen. Rebuild puts your chosen monitors in this arrangement and saves it." />
+              <Button Classes="px primary" Content="REBUILD" HorizontalAlignment="Stretch" Command="{Binding RebuildCommand}" IsEnabled="{Binding !Busy}" />
+            </StackPanel>
+            <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+              <StackPanel Spacing="12" Margin="16">
+                <TextBlock Classes="pixel" Text="SCREEN" />
+                <TextBlock Classes="muted" Text="Click a screen to choose its monitor." IsVisible="{Binding !HasSelectedSwap}" TextWrapping="Wrap" />
+                <Panel IsVisible="{Binding HasSelectedSwap}">
+                <StackPanel Spacing="12" DataContext="{Binding SelectedSwap}" x:DataType="vm:SwapRow">
+                  <StackPanel>
+                    <TextBlock Text="{Binding From}" Classes.bad="{Binding IsMissing}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Classes="dim" Text="{Binding Spot}" />
+                    <TextBlock Classes="dim bad" Text="not plugged in" IsVisible="{Binding IsMissing}" />
+                  </StackPanel>
+                  <StackPanel Spacing="6">
+                    <TextBlock Classes="pixel" FontSize="7" Text="SHOW ON" />
+                    <ComboBox ItemsSource="{Binding Options}" SelectedItem="{Binding Selected}" HorizontalAlignment="Stretch" />
+                  </StackPanel>
+                </StackPanel>
+                </Panel>
               </StackPanel>
-            </DockPanel>
-          </Border>
-          <TextBlock DockPanel.Dock="Bottom" Classes="dim" HorizontalAlignment="Center" Margin="0,8,0,0" TextTrimming="CharacterEllipsis"
-                     Text="{Binding Editing.Note}" Classes.bad="{Binding Editing.NoteIsBad}" />
-          <px:ProfilePreview Screens="{Binding Editing.Screens}" ShowLabels="True" MinHeight="120" />
-        </DockPanel>
-      </Border>
+            </ScrollViewer>
+          </DockPanel>
+        </Border>
+      </Grid>
       <DockPanel DataContext="{Binding Layout}" x:DataType="vm:LayoutViewModel"
                  IsVisible="{Binding $parent[Window].((vm:MainViewModel)DataContext).Profiles.EditingLive}">
         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,16">

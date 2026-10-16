@@ -179,6 +179,59 @@ public sealed partial class ProfilesViewModel : ObservableObject
             }
         }
         OnPropertyChanged(nameof(HasSwaps));
+        BuildOfflineBoxes();
+    }
+
+    /// <summary>The profile that isn't on screen, drawn on the same canvas as the Layout tab (view-only).</summary>
+    public ObservableCollection<MonitorBox> OfflineBoxes { get; } = new();
+    [ObservableProperty] private SwapRow? _selectedSwap;
+    public bool HasSelectedSwap => SelectedSwap is not null;
+    partial void OnSelectedSwapChanged(SwapRow? value) => OnPropertyChanged(nameof(HasSelectedSwap));
+
+    private void BuildOfflineBoxes()
+    {
+        var keep = SelectedSwap is { } k ? Swaps.IndexOf(k) : -1;
+        OfflineBoxes.Clear();
+        SelectedSwap = null;
+        if (Editing is not { IsActive: false } row) return;
+        var phys = row.Screens.ToDictionary(s => (s.X, s.Y, s.W, s.H));
+        foreach (var swap in Swaps)
+        {
+            var sc = phys.TryGetValue((swap.Screen.X, swap.Screen.Y, swap.Screen.W, swap.Screen.H), out var p) && p.HasPhys ? p : swap.Screen;
+            var box = new MonitorBox
+            {
+                Id = sc.Pnp + sc.X + "," + sc.Y,
+                IsPrimary = sc.IsPrimary,
+                XMm = sc.HasPhys ? sc.PX : sc.X * 0.2646,
+                YMm = sc.HasPhys ? sc.PY : sc.Y * 0.2646,
+                WidthMm = sc.HasPhys ? sc.PW : sc.W * 0.2646,
+                HeightMm = sc.HasPhys ? sc.PH : sc.H * 0.2646,
+                Swap = swap,
+            };
+            SyncBox(box);
+            swap.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(SwapRow.Selected)) SyncBox(box); };
+            OfflineBoxes.Add(box);
+        }
+        var first = (keep >= 0 && keep < OfflineBoxes.Count ? OfflineBoxes[keep] : null)
+                    ?? OfflineBoxes.FirstOrDefault(b => b.Swap!.IsMissing) ?? OfflineBoxes.FirstOrDefault();
+        if (first is not null) SelectOfflineBox(first);
+    }
+
+    private static void SyncBox(MonitorBox box)
+    {
+        var w = box.Swap!;
+        var chosen = w.Selected;
+        box.IsMissing = chosen is null;
+        box.Label = (chosen?.ToString() ?? w.From).ToUpperInvariant();
+        box.Detail = chosen is null ? "not plugged in · click to pick a monitor"
+            : chosen.Pnp == w.Screen.Pnp ? w.Spot
+            : $"{w.Spot} · replaces {w.From}";
+    }
+
+    public void SelectOfflineBox(MonitorBox? box)
+    {
+        foreach (var b in OfflineBoxes) b.IsSelected = b == box;
+        SelectedSwap = box?.Swap;
     }
 
     [RelayCommand]
@@ -238,6 +291,7 @@ public sealed partial class ProfilesViewModel : ObservableObject
     {
         CurrentScreens = PhysicalPreview.Apply(_currentRaw, _desk, _settings.MonitorSizesMm, useLive: true);
         foreach (var r in Profiles) r.Screens = PhysicalPreview.Apply(r.RawScreens, _desk, _settings.MonitorSizesMm, useLive: r.IsActive);
+        if (Editing is { IsActive: false }) BuildOfflineBoxes(); // redraw at the new true sizes, keeping the selected screen
     }
 
     internal bool IsStartup(string uuid) => _settings.StartupProfileUuid == uuid;
