@@ -65,7 +65,7 @@ public sealed partial class ProfilesViewModel : ObservableObject
         try
         {
             var (items, current, inv) = await Task.Run(() => _service.Snapshot());
-            var currentScreens = ScreenRect.From(current);
+            var currentScreens = ScreenRect.From(current, inv);
 
             Profiles.Clear();
             foreach (var p in items)
@@ -77,8 +77,10 @@ public sealed partial class ProfilesViewModel : ObservableObject
             CurrentScreens = currentScreens;
             CurrentIsSaved = match is not null;
             CurrentTitle = match is not null ? match.Name : "Not saved as a profile";
-            CurrentDetail = inv.Active.Count == 0 ? "no active displays reported" :
-                $"{inv.Active.Count} on: " + string.Join(", ", inv.Active);
+            CurrentDetail = currentScreens.Count == 0 ? "no active displays reported" :
+                string.Join("\n", currentScreens
+                    .OrderByDescending(r => r.IsPrimary).ThenBy(r => r.X)
+                    .Select(r => $"{r.Label}  ·  {r.W}x{r.H}  ·  {r.Orientation}" + (r.IsPrimary ? "  ·  primary" : "")));
             var idle = DisplayInventory.Except(inv.Connected, inv.Active);
             CurrentIdle = idle.Count == 0 ? "" : "plugged in but off: " + string.Join(", ", idle);
 
@@ -214,15 +216,36 @@ public sealed partial class ProfilesViewModel : ObservableObject
     }
 }
 
+public enum ScreenState { Unknown, Present, Missing }
+
 public sealed record ScreenRect(int X, int Y, int W, int H, bool IsPrimary, string Name)
 {
-    public static IReadOnlyList<ScreenRect> From(ProfileItem? item)
+    public string Label { get; init; } = "";
+    public ScreenState State { get; init; }
+    public ScreenRotation Rotation { get; init; }
+
+    public string Orientation => (W >= H ? "landscape" : "portrait") +
+        (Rotation is ScreenRotation.ROTATE_180 or ScreenRotation.ROTATE_270 ? " (flipped)" : "");
+
+    /// <summary>The profile's screens, each tagged with its monitor and whether that monitor is plugged in now.</summary>
+    public static IReadOnlyList<ScreenRect> From(ProfileItem? item, DisplayInventory inv)
     {
         if (item is null) return [];
         try
         {
+            var monitors = DisplayInventory.ScreenMonitors(item);
+            var connected = inv.Connected.Select(r => r.Pnp).ToHashSet();
             return item.GetScreenPositions()
-                .Select(sp => new ScreenRect(sp.ScreenX, sp.ScreenY, sp.ScreenWidth, sp.ScreenHeight, sp.IsPrimary, sp.Name ?? ""))
+                .Select(sp =>
+                {
+                    var known = monitors.TryGetValue(sp.Name ?? "", out var mon);
+                    return new ScreenRect(sp.ScreenX, sp.ScreenY, sp.ScreenWidth, sp.ScreenHeight, sp.IsPrimary, sp.Name ?? "")
+                    {
+                        Label = known ? mon!.ToString() : $"{sp.ScreenWidth}x{sp.ScreenHeight}",
+                        State = !known ? ScreenState.Unknown : connected.Contains(mon!.Pnp) ? ScreenState.Present : ScreenState.Missing,
+                        Rotation = sp.Rotation,
+                    };
+                })
                 .ToList();
         }
         catch
@@ -252,7 +275,7 @@ public sealed partial class ProfileRow : ObservableObject
         _owner = owner;
         IsStartup = owner.IsStartup(item.UUID);
         settings.Hotkeys.TryGetValue($"profile:{Uuid}", out _hotkey);
-        Screens = ScreenRect.From(item);
+        Screens = ScreenRect.From(item, inv);
 
         var wants = DisplayInventory.Of(item);
         Missing = DisplayInventory.Except(wants, inv.Connected);
@@ -300,7 +323,7 @@ public sealed partial class ProfileRow : ObservableObject
     public bool IsActive { get; }
     public bool IsUsable { get; }
     public bool IsStartup { get; }
-    public string StartupLabel => IsStartup ? "Startup: on" : "Use at startup";
+    public string StartupLabel => IsStartup ? "Startup ✓" : "Use at startup";
 
     public string Badge => IsActive ? "ACTIVE" : Missing.Count > 0 ? "MISSING DISPLAY" : IsUsable ? "" : "UNAVAILABLE";
     public bool HasBadge => Badge.Length > 0;
