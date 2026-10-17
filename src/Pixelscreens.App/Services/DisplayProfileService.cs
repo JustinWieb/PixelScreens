@@ -46,6 +46,28 @@ public sealed class DisplayProfileService
         return ProfileRepository.AddProfile(profile) ? profile : null;
     });
 
+    /// <summary>
+    /// Arrange live monitors into <paramref name="placements"/>, then re-capture that as <paramref name="old"/>,
+    /// keeping its name and id (so hotkeys and the startup choice still point at it).
+    /// </summary>
+    public Task<(bool ok, string message)> RebuildAsync(ProfileItem old, IReadOnlyList<DisplayArranger.Placement> placements) => Task.Run(async () =>
+    {
+        var (ok, msg) = DisplayArranger.Apply(placements);
+        if (!ok) return (false, msg);
+        await Task.Delay(2500); // let Windows and the driver settle before reading the result back
+
+        var fresh = new ProfileItem { Name = old.Name };
+        if (!fresh.CreateProfileFromCurrentDisplaySettings(captureWallpaper: false))
+            return (false, "monitors arranged, but the new layout couldn't be captured");
+        fresh.UUID = old.UUID;
+
+        var twin = ProfileRepository.AllProfiles.FirstOrDefault(p => !ReferenceEquals(p, old) && p.Equals(fresh));
+        if (twin is not null) return (false, $"monitors arranged, but that's identical to \"{twin.Name}\", so nothing was overwritten");
+
+        if (!ProfileRepository.RemoveProfile(old)) return (false, "monitors arranged, but the old profile couldn't be replaced");
+        return ProfileRepository.AddProfile(fresh) ? (true, "rebuilt") : (false, "monitors arranged, but saving the profile failed");
+    });
+
     public Task<bool> RenameAsync(ProfileItem profile, string name) =>
         Task.Run(() => ProfileRepository.RenameProfile(profile, name.Trim()));
 

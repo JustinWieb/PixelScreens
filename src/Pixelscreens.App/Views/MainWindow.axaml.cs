@@ -16,6 +16,10 @@ public partial class MainWindow : Window
         {
             if (DataContext is MainViewModel vm) vm.Layout.Open(box);
         };
+        OfflineCanvas.MonitorClicked += (_, box) =>
+        {
+            if (DataContext is MainViewModel vm) vm.Profiles.SelectOfflineBox(box);
+        };
         LayoutCanvas.MonitorClicked += (_, box) =>
         {
             if (DataContext is MainViewModel vm) vm.Layout.Select(box);

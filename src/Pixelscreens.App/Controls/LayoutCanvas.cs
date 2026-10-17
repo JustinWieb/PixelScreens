@@ -41,6 +41,13 @@ public sealed class LayoutCanvas : Control
         AvaloniaProperty.Register<LayoutCanvas, FontFamily?>(nameof(PixelFont));
 
     /// <summary>When set, only this monitor is shown, large, for detailed editing.</summary>
+    /// <summary>View-only: click selects, wheel zooms, empty space pans, but nothing moves or resizes.</summary>
+    public static readonly StyledProperty<bool> IsReadOnlyProperty =
+        AvaloniaProperty.Register<LayoutCanvas, bool>(nameof(IsReadOnly));
+    public bool IsReadOnly { get => GetValue(IsReadOnlyProperty); set => SetValue(IsReadOnlyProperty, value); }
+
+    private static readonly IBrush BadBrush = new SolidColorBrush(Color.Parse("#FF8C8C"));
+
     public static readonly StyledProperty<MonitorBox?> FocusedProperty =
         AvaloniaProperty.Register<LayoutCanvas, MonitorBox?>(nameof(Focused));
 
@@ -285,7 +292,7 @@ public sealed class LayoutCanvas : Control
                 ctx.DrawRectangle(border, outer);
             }
             ctx.FillRectangle(BoxBrush ?? Brushes.Transparent, r);
-            ctx.DrawRectangle(m == _drag || m.IsSelected ? accent : border, r);
+            ctx.DrawRectangle(m == _drag || m.IsSelected ? accent : m.IsMissing ? new Pen(BadBrush, 1) : border, r);
 
             // Corner ticks give it a retro "selection box" feel without rounded corners.
             const double tick = 6;
@@ -326,7 +333,7 @@ public sealed class LayoutCanvas : Control
 
         // Handles on the selected monitor: corners resize the panel, edges set that side's bezel.
         var sel = ms.FirstOrDefault(m => m.IsSelected);
-        if (sel is not null && (Focused is null || sel == Focused))
+        if (!IsReadOnly && sel is not null && (Focused is null || sel == Focused))
         {
             var r = ToCanvas(sel);
             var fill = AccentBrush ?? Brushes.White;
@@ -351,7 +358,7 @@ public sealed class LayoutCanvas : Control
 
         // Resize / bezel handles on the selected monitor take priority.
         var sel = ms.FirstOrDefault(m => m.IsSelected);
-        if (sel is not null && (Focused is null || sel == Focused))
+        if (!IsReadOnly && sel is not null && (Focused is null || sel == Focused))
         {
             var h = HitHandle(sel, p);
             if (h != Handle.None)
@@ -380,6 +387,12 @@ public sealed class LayoutCanvas : Control
             }
             _lastClick = now;
             _lastClickBox = ms[i];
+            if (IsReadOnly)
+            {
+                MonitorClicked?.Invoke(this, ms[i]);
+                InvalidateVisual();
+                return;
+            }
             _drag = ms[i];
             _handle = Handle.None;
             _moved = false;

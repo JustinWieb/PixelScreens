@@ -33,9 +33,51 @@ public sealed partial class LayoutViewModel : ObservableObject
                 "Dead" => "cursor engine connection lost",
                 _ => $"cursor engine: {ev}",
             };
-            if (ev == "Running") IsRunning = true;
+            if (ev == "Running") { IsRunning = true; _lastRunningAt = DateTime.UtcNow; }
             if (ev is "Stopped" or "Dead") IsRunning = false;
+            // The engine stops itself on some Windows display/setting changes. If the user wants it on, bring it back.
+            if (_wantRunning && ev is "Stopped" or "Dead" or "SettingChanged" or "Resumed") ScheduleRecover(ev);
         });
+    }
+
+    /// <summary>What the user asked for: on unless they pressed Disable. Survives engine self-stops.</summary>
+    private bool _wantRunning;
+    private DateTime _lastRunningAt;
+    private CancellationTokenSource? _recover;
+
+    private void ScheduleRecover(string why)
+    {
+        var at = DateTime.UtcNow;
+        _recover?.Cancel();
+        var cts = _recover = new CancellationTokenSource();
+        _ = Task.Run(async () =>
+        {
+            // Let Windows finish rearranging (and ignore the Stopped→Running blip of a normal reload).
+            try { await Task.Delay(2500, cts.Token); } catch (OperationCanceledException) { return; }
+            await Dispatcher.UIThread.InvokeAsync(() => RecoverAsync(why, at, cts.Token));
+        });
+    }
+
+    private async Task RecoverAsync(string why, DateTime at, CancellationToken ct)
+    {
+        for (var attempt = 1; attempt <= 5 && _wantRunning && !ct.IsCancellationRequested; attempt++)
+        {
+            // Still (or again) running: nothing to fix. This also skips the Stopped→Running blip of a normal reload.
+            if (IsRunning) return;
+            try
+            {
+                await RefreshAsync();          // re-read monitors, they may have changed
+                await _engine.StartAsync(ct);  // load zones for what's plugged in now and run
+                IsRunning = true;
+                Status = "enabled · restarted after a display change";
+                return;
+            }
+            catch (Exception ex)
+            {
+                Status = $"restart attempt {attempt} failed: {Describe(ex)}";
+                try { await Task.Delay(TimeSpan.FromSeconds(3 * attempt), ct); } catch (OperationCanceledException) { return; }
+            }
+        }
     }
 
     public ObservableCollection<MonitorBox> Monitors { get; } = new();
@@ -297,6 +339,7 @@ public sealed partial class LayoutViewModel : ObservableObject
         Status = "enabling...";
         try
         {
+            _wantRunning = true;
             await _engine.StartAsync();
             IsRunning = true;
             Status = "enabled";
@@ -317,6 +360,8 @@ public sealed partial class LayoutViewModel : ObservableObject
         Busy = true;
         try
         {
+            _wantRunning = false;
+            _recover?.Cancel();
             await _engine.StopAsync();
             IsRunning = false;
             Status = "disabled";

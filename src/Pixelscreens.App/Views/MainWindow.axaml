@@ -143,8 +143,8 @@
       <DockPanel>
       <!-- The profile being edited: its settings live here, and work whether or not it is on screen. -->
       <Border DockPanel.Dock="Top" Classes="panel" Margin="0,0,0,16" Padding="12" DataContext="{Binding Profiles}" x:DataType="vm:ProfilesViewModel">
-        <Grid ColumnDefinitions="Auto,*,Auto">
-          <StackPanel VerticalAlignment="Center" Spacing="6">
+        <WrapPanel>
+          <StackPanel VerticalAlignment="Bottom" Spacing="6" Margin="0,0,24,8">
             <TextBlock Classes="pixel" FontSize="7" Text="PROFILE" />
             <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding HasEditing}">
               <TextBox Width="240" Text="{Binding EditName}" Watermark="profile name" />
@@ -155,7 +155,7 @@
               <Button Classes="px primary" Content="SAVE AS PROFILE" Command="{Binding SaveCurrentCommand}" />
             </StackPanel>
           </StackPanel>
-          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Bottom" IsVisible="{Binding HasEditing}">
+          <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Bottom" Margin="0,0,0,8" IsVisible="{Binding HasEditing}">
             <StackPanel Spacing="6">
               <TextBlock Classes="pixel" FontSize="7" Text="HOTKEY" />
               <px:HotkeyBox Gesture="{Binding Editing.Hotkey}" Width="120" ToolTip.Tip="Click, then press keys. Backspace clears." />
@@ -165,21 +165,53 @@
             <Button Classes="px primary" Content="APPLY" Width="88" VerticalAlignment="Bottom" Command="{Binding ApplyEditingCommand}" IsEnabled="{Binding Editing.CanApply}" IsVisible="{Binding EditingOffline}" />
             <Button Classes="px danger" Content="DELETE" Width="88" VerticalAlignment="Bottom" Command="{Binding Editing.DeleteCommand}" />
           </StackPanel>
-        </Grid>
+        </WrapPanel>
       </Border>
       <Panel>
-      <!-- Not on screen: show its arrangement; screens can only be moved once Windows is using it. -->
-      <Border Classes="panel" DataContext="{Binding Profiles}" x:DataType="vm:ProfilesViewModel" IsVisible="{Binding EditingOffline}">
-        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16">
-          <px:ProfilePreview Screens="{Binding Editing.Screens}" ShowLabels="True" Width="560" Height="300" />
-          <TextBlock Classes="muted" HorizontalAlignment="Center" Text="{Binding Editing.Note}" />
-          <TextBlock Classes="dim" HorizontalAlignment="Center" Text="This profile isn't on screen. Apply it to move screens, set sizes and scaling." />
-        </StackPanel>
-      </Border>
+      <!-- Not on screen: same canvas as the live layout, view-only. Click a screen to choose which monitor fills it. -->
+      <Grid ColumnDefinitions="*,16,260" DataContext="{Binding Profiles}" x:DataType="vm:ProfilesViewModel" IsVisible="{Binding EditingOffline}">
+        <Border Classes="panel" Padding="0" ClipToBounds="True">
+          <px:LayoutCanvas x:Name="OfflineCanvas" Monitors="{Binding OfflineBoxes}" IsReadOnly="True"
+                           PixelFont="{StaticResource Px.Font.Pixel}"
+                           BoxBrush="{StaticResource Px.Brush.PanelRaised}"
+                           BorderBrush="{StaticResource Px.Brush.BorderStrong}"
+                           AccentBrush="{StaticResource Px.Brush.Accent}"
+                           TextBrush="{StaticResource Px.Brush.Text}"
+                           MutedBrush="{StaticResource Px.Brush.TextMuted}" />
+        </Border>
+        <Border Grid.Column="2" Classes="panel" Padding="0">
+          <DockPanel>
+            <StackPanel DockPanel.Dock="Bottom" Spacing="8" Margin="16">
+              <TextBlock Classes="dim" TextWrapping="Wrap" Text="Not on screen. Rebuild puts your chosen monitors in this arrangement and saves it." />
+              <Button Classes="px primary" Content="REBUILD" HorizontalAlignment="Stretch" Command="{Binding RebuildCommand}" IsEnabled="{Binding !Busy}" />
+            </StackPanel>
+            <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+              <StackPanel Spacing="12" Margin="16">
+                <TextBlock Classes="pixel" Text="SCREEN" />
+                <TextBlock Classes="muted" Text="Click a screen to choose its monitor." IsVisible="{Binding !HasSelectedSwap}" TextWrapping="Wrap" />
+                <Panel IsVisible="{Binding HasSelectedSwap}">
+                <StackPanel Spacing="12" DataContext="{Binding SelectedSwap}" x:DataType="vm:SwapRow">
+                  <StackPanel>
+                    <TextBlock Text="{Binding From}" Classes.bad="{Binding IsMissing}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Classes="dim" Text="{Binding Spot}" />
+                    <TextBlock Classes="dim bad" Text="not plugged in" IsVisible="{Binding IsMissing}" />
+                  </StackPanel>
+                  <StackPanel Spacing="6">
+                    <TextBlock Classes="pixel" FontSize="7" Text="SHOW ON" />
+                    <ComboBox ItemsSource="{Binding Options}" SelectedItem="{Binding Selected}" HorizontalAlignment="Stretch" />
+                  </StackPanel>
+                </StackPanel>
+                </Panel>
+              </StackPanel>
+            </ScrollViewer>
+          </DockPanel>
+        </Border>
+      </Grid>
       <DockPanel DataContext="{Binding Layout}" x:DataType="vm:LayoutViewModel"
                  IsVisible="{Binding $parent[Window].((vm:MainViewModel)DataContext).Profiles.EditingLive}">
         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,16">
-          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top" Margin="16,0,0,0">
+          <WrapPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
+            <WrapPanel.Styles><Style Selector="Button"><Setter Property="Margin" Value="0,0,8,0" /></Style></WrapPanel.Styles>
             <Button Classes="px" Content="SHOW ALL" Command="{Binding ShowAllCommand}" IsVisible="{Binding IsFocused}" />
             <Button Classes="px" Content="MATCH WINDOWS" Command="{Binding MatchWindowsCommand}" IsEnabled="{Binding !Busy}"
                     ToolTip.Tip="Rebuild the physical layout from the Windows arrangement: same neighbours, real sizes. Fine-tune by dragging afterwards." />
@@ -187,7 +219,7 @@
             <Button Classes="px" Content="SAVE" Command="{Binding SaveCommand}" IsEnabled="{Binding Dirty}" ToolTip.Tip="Edits save on their own a moment after you stop. This forces it immediately." />
             <Button Classes="px primary" Content="ENABLE" Command="{Binding StartCommand}" IsVisible="{Binding !IsRunning}" IsEnabled="{Binding !Busy}" />
             <Button Classes="px on" Content="ENABLED" Command="{Binding StopCommand}" IsVisible="{Binding IsRunning}" IsEnabled="{Binding !Busy}" ToolTip.Tip="Cursor engine is on. Click to turn it off." />
-          </StackPanel>
+          </WrapPanel>
           <StackPanel>
             <TextBlock Classes="pixel" Text="PHYSICAL LAYOUT" />
             <TextBlock Classes="muted" Margin="0,6,0,0" TextWrapping="Wrap" Text="Drag screens to where they sit on your desk. The mouse crosses at the matching physical spot." />

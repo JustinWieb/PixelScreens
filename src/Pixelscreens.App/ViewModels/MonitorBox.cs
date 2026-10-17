@@ -9,8 +9,12 @@ public sealed partial class MonitorBox : ObservableObject
     private bool _syncing;
 
     public string Id { get; init; } = "";
-    public string Label { get; init; } = "";
-    public string Detail { get; init; } = "";
+    [ObservableProperty] private string _label = "";
+    [ObservableProperty] private string _detail = "";
+    /// <summary>Drawn with a red outline: the monitor for this spot isn't plugged in.</summary>
+    [ObservableProperty] private bool _isMissing;
+    /// <summary>For a profile that isn't on screen: which spot of the profile this box stands for.</summary>
+    public SwapRow? Swap { get; init; }
     /// <summary>Windows source name (\\.\DISPLAY1), used for per-monitor scaling.</summary>
     public string GdiName { get; init; } = "";
     /// <summary>EDID PnP code (GBT3204), the key profiles use for this monitor.</summary>
